@@ -10,14 +10,20 @@ class UserProfile {
   final String id;
   final String phoneNumber;
   final String fullName;
+  final String email;
   final String location;
+  final String bio;
+  final bool isProvider;
   final bool isRegistered;
 
   const UserProfile({
     this.id = '',
     required this.phoneNumber,
     required this.fullName,
+    this.email = '',
     required this.location,
+    this.bio = '',
+    this.isProvider = false,
     required this.isRegistered,
   });
 
@@ -26,7 +32,10 @@ class UserProfile {
       id: json['id']?.toString() ?? '',
       phoneNumber: json['phone_number']?.toString() ?? json['phone']?.toString() ?? '',
       fullName: json['full_name']?.toString() ?? 'User',
+      email: json['email']?.toString() ?? '',
       location: json['location']?.toString() ?? 'Indiranagar, Bengaluru',
+      bio: json['bio']?.toString() ?? '',
+      isProvider: json['is_provider'] == true,
       isRegistered: true,
     );
   }
@@ -36,8 +45,33 @@ class UserProfile {
       if (id.isNotEmpty) 'id': id,
       'phone_number': phoneNumber,
       'full_name': fullName,
+      if (email.isNotEmpty) 'email': email,
       if (location.isNotEmpty) 'location': location,
+      if (bio.isNotEmpty) 'bio': bio,
+      'is_provider': isProvider,
     };
+  }
+
+  UserProfile copyWith({
+    String? id,
+    String? phoneNumber,
+    String? fullName,
+    String? email,
+    String? location,
+    String? bio,
+    bool? isProvider,
+    bool? isRegistered,
+  }) {
+    return UserProfile(
+      id: id ?? this.id,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      location: location ?? this.location,
+      bio: bio ?? this.bio,
+      isProvider: isProvider ?? this.isProvider,
+      isRegistered: isRegistered ?? this.isRegistered,
+    );
   }
 }
 
@@ -55,7 +89,7 @@ class AuthService {
       AppLogger.info('Supabase: Checking if phone $cleanDigits exists in profiles...');
       final response = await _supabase
           .from('profiles')
-          .select('id, full_name, phone_number')
+          .select('id, full_name, phone_number, email, location, bio, is_provider')
           .eq('phone_number', cleanDigits)
           .maybeSingle();
 
@@ -64,6 +98,9 @@ class AuthService {
         final profile = UserProfile.fromJson(response);
         _saveProfile(profile);
         _ref.read(currentUserProfileProvider.notifier).state = profile;
+        if (profile.isProvider) {
+          _ref.read(isProviderLiveProvider.notifier).state = true;
+        }
         return true;
       }
     } catch (e) {
@@ -122,12 +159,59 @@ class AuthService {
     }
   }
 
+  /// Updates profile details (name, phone, email, bio, isProvider) locally and in Supabase
+  Future<void> updateProfile({
+    required String fullName,
+    required String phoneNumber,
+    String email = '',
+    String location = '',
+    String bio = '',
+    bool? isProvider,
+  }) async {
+    final cleanDigits = phoneNumber.replaceAll(RegExp(r'\D'), '');
+    final current = _ref.read(currentUserProfileProvider);
+
+    final updated = UserProfile(
+      id: current?.id ?? '',
+      phoneNumber: cleanDigits.isNotEmpty ? cleanDigits : (current?.phoneNumber ?? ''),
+      fullName: fullName.isNotEmpty ? fullName : (current?.fullName ?? 'User'),
+      email: email.isNotEmpty ? email : (current?.email ?? ''),
+      location: location.isNotEmpty ? location : (current?.location ?? 'Indiranagar, Bengaluru'),
+      bio: bio.isNotEmpty ? bio : (current?.bio ?? ''),
+      isProvider: isProvider ?? (current?.isProvider ?? false),
+      isRegistered: true,
+    );
+
+    _saveProfile(updated);
+    _ref.read(currentUserProfileProvider.notifier).state = updated;
+
+    try {
+      final phone = updated.phoneNumber;
+      if (phone.isNotEmpty) {
+        await _supabase.from('profiles').upsert({
+          if (updated.id.isNotEmpty) 'id': updated.id,
+          'phone_number': phone,
+          'full_name': updated.fullName,
+          'email': updated.email,
+          'location': updated.location,
+          'bio': updated.bio,
+          'is_provider': updated.isProvider,
+          'updated_at': DateTime.now().toIso8601String(),
+        }, onConflict: 'phone_number');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error updating profile in Supabase: $e');
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     _ref.read(currentUserProfileProvider.notifier).state = null;
+    _ref.read(isProviderLiveProvider.notifier).state = false;
     try {
       final prefs = _ref.read(sharedPreferencesProvider);
       await prefs.remove('user_profile');
+      await prefs.remove('is_provider_live');
     } catch (_) {}
     try {
       await _supabase.auth.signOut();
@@ -136,6 +220,16 @@ class AuthService {
     }
   }
 }
+
+/// Provider to track if provider is live/online
+final isProviderLiveProvider = StateProvider<bool>((ref) {
+  try {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    return prefs.getBool('is_provider_live') ?? false;
+  } catch (_) {
+    return false;
+  }
+});
 
 /// Provider for current user profile state with local persistence
 final currentUserProfileProvider = StateProvider<UserProfile?>((ref) {

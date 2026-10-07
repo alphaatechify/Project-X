@@ -6,6 +6,7 @@ import 'package:project_x/app/router/routes.dart';
 import 'package:project_x/app/theme/app_colors.dart';
 import '../../../../services/auth_service.dart';
 import '../../../../core/supabase/supabase_provider.dart';
+import '../../../../core/storage/local_storage.dart';
 
 class ProviderProfileScreen extends ConsumerStatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -16,10 +17,12 @@ class ProviderProfileScreen extends ConsumerStatefulWidget {
 
 class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   // Controllers
+  final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _primaryPhoneController = TextEditingController();
   final TextEditingController _emergencyPhoneController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _customAmountController = TextEditingController(text: '1500');
 
   // States
   String _selectedCategory = 'House Cleaning';
@@ -29,8 +32,31 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   // Checklist State
   bool _chkOwnTools = true;
   bool _chkInstantDispatch = true;
-  bool _chkVaccinated = true;
   bool _chkGeofenceReadiness = true;
+
+  final Map<String, List<String>> _categorySubServicesMap = {
+    'House Cleaning': ['Deep Cleaning', 'Kitchen & Oven', 'Floor Mopping & Buffing', 'Bathroom Scrubbing'],
+    'Electrician': ['Wiring & Switches', 'Fan & Lights', 'Fuse & Meter Board', 'Appliance Installation'],
+    'Plumber': ['Tap & Pipe Leakage', 'Drain Unblocking', 'Water Heater Setup', 'Toilet Repair'],
+    'Appliance Repair': ['AC Service & Gas Refill', 'Refrigerator Repair', 'Washing Machine', 'Microwave Repair'],
+    'Carpenter': ['Door & Lock Repair', 'Custom Furniture', 'Modular Kitchen', 'Wood Polishing'],
+    'Driver': ['Personal Chauffeur', 'Outstation Trip', 'Airport Drop', 'Daily Commute Driver'],
+    'Doctor & Home Care': ['General Checkup', 'Nursing & Dressing', 'Elderly Care', 'Physiotherapy'],
+    'Painter & Decorator': ['Full House Painting', 'Waterproofing', 'Wall Textures', 'Touch-up Painting'],
+  };
+
+  void _selectCategory(String cat) {
+    setState(() {
+      _selectedCategory = cat;
+      _selectedSubServices.clear();
+      final subs = _categorySubServicesMap[cat] ?? [];
+      if (subs.length >= 2) {
+        _selectedSubServices.addAll(subs.take(2));
+      } else {
+        _selectedSubServices.addAll(subs);
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -38,40 +64,70 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final profile = ref.read(currentUserProfileProvider);
       if (profile != null) {
+        if (_nameController.text.isEmpty && profile.fullName.isNotEmpty) {
+          _nameController.text = profile.fullName;
+        }
         if (_primaryPhoneController.text.isEmpty && profile.phoneNumber.isNotEmpty) {
-          _primaryPhoneController.text = '+91 ${profile.phoneNumber}';
+          _primaryPhoneController.text = profile.phoneNumber;
+        }
+        if (_emailController.text.isEmpty && profile.email.isNotEmpty) {
+          _emailController.text = profile.email;
+        }
+        if (_bioController.text.isEmpty && profile.bio.isNotEmpty) {
+          _bioController.text = profile.bio;
         }
       }
+      if (mounted) setState(() {});
     });
   }
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _primaryPhoneController.dispose();
     _emergencyPhoneController.dispose();
     _bioController.dispose();
+    _customAmountController.dispose();
     super.dispose();
   }
 
   void _handleSubmit() async {
-    final profile = ref.read(currentUserProfileProvider);
+    final authService = ref.read(authServiceProvider);
     final supabase = ref.read(supabaseClientProvider);
+    final profile = ref.read(currentUserProfileProvider);
+
+    final cleanDigits = _primaryPhoneController.text.replaceAll(RegExp(r'\D'), '');
+    final phone = cleanDigits.isNotEmpty ? cleanDigits : (profile?.phoneNumber ?? '1234567890');
+    final name = _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : (profile?.fullName ?? 'Service Partner');
+    final email = _emailController.text.trim();
+    final bio = _bioController.text.trim();
+
+    double priceNumber = 1200.0;
+    if (_selectedRate == 'Custom') {
+      priceNumber = double.tryParse(_customAmountController.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1500.0;
+    } else {
+      priceNumber = double.tryParse(_selectedRate.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1200.0;
+    }
 
     try {
-      final cleanDigits = _primaryPhoneController.text.replaceAll(RegExp(r'\D'), '');
-      final phone = (profile != null && profile.phoneNumber.isNotEmpty) ? profile.phoneNumber : cleanDigits;
+      // 1. Update Profile in local state, SharedPreferences & Supabase
+      await authService.updateProfile(
+        fullName: name,
+        phoneNumber: phone,
+        email: email,
+        bio: bio,
+        isProvider: true,
+      );
 
-      // 1. Update user profile as provider
-      if (phone.isNotEmpty) {
-        await supabase.from('profiles').update({
-          'is_provider': true,
-          'bio': _bioController.text.trim(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }).eq('phone_number', phone);
-      }
+      // 2. Set provider LIVE state
+      ref.read(isProviderLiveProvider.notifier).state = true;
+      try {
+        final prefs = ref.read(sharedPreferencesProvider);
+        await prefs.setBool('is_provider_live', true);
+      } catch (_) {}
 
-      // 2. Insert provider service offering into Supabase services table
+      // 3. Insert or update service in Supabase services table
       final profileRow = await supabase
           .from('profiles')
           .select('id')
@@ -80,15 +136,14 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
       if (profileRow != null && profileRow['id'] != null) {
         final providerId = profileRow['id'];
-        final priceNumber = double.tryParse(_selectedRate.replaceAll(RegExp(r'[^\d.]'), '')) ?? 499.0;
 
         await supabase.from('services').insert({
           'provider_id': providerId,
           'title': _selectedCategory,
           'category': _selectedCategory.toLowerCase().replaceAll(' ', '_'),
-          'description': _bioController.text.trim(),
+          'description': bio.isNotEmpty ? bio : 'Professional $_selectedCategory service by $name',
           'price': priceNumber,
-          'price_unit': _selectedRate.contains('day') ? '/day' : '/hr',
+          'price_unit': '/day',
           'sub_categories': _selectedSubServices.toList(),
           'is_available': true,
         });
@@ -107,7 +162,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Provider Profile Updated! You are LIVE on the dispatch network.',
+                'Profile Updated! You are now LIVE as a verified Service Pro.',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
             ),
@@ -277,8 +332,10 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                   Builder(
                     builder: (context) {
                       final profile = ref.watch(currentUserProfileProvider);
-                      final name = (profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner';
-                      final initial = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+                      final currentName = _nameController.text.trim().isNotEmpty
+                          ? _nameController.text.trim()
+                          : ((profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner');
+                      final initial = currentName.isNotEmpty ? currentName[0].toUpperCase() : 'P';
                       return Stack(
                         children: [
                           ClipRRect(
@@ -321,7 +378,9 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     child: Builder(
                       builder: (context) {
                         final profile = ref.watch(currentUserProfileProvider);
-                        final name = (profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner';
+                        final currentName = _nameController.text.trim().isNotEmpty
+                            ? _nameController.text.trim()
+                            : ((profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner');
                         final loc = (profile != null && profile.location.isNotEmpty) ? profile.location : 'Partner Hub';
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -329,7 +388,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                             Row(
                               children: [
                                 Text(
-                                  name,
+                                  currentName,
                                   style: GoogleFonts.plusJakartaSans(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800,
@@ -390,6 +449,38 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             _buildSectionHeader('1. CONTACT & IDENTITY LOCK', badgeText: '🔒 256-bit Encrypted'),
             const SizedBox(height: 14),
 
+            // Full Name
+            _buildInputLabel('FULL NAME'),
+            const SizedBox(height: 6),
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: AppColors.surfaceWhite,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.person_outline_rounded, color: AppColors.textSecondary, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _nameController,
+                      style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your full name',
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                      onChanged: (val) => setState(() {}),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
             // Email Address
             _buildInputLabel('EMAIL ADDRESS'),
             const SizedBox(height: 6),
@@ -409,7 +500,11 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     child: TextField(
                       controller: _emailController,
                       style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
-                      decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter your email address',
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
                     ),
                   ),
                   Container(
@@ -436,7 +531,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             const SizedBox(height: 14),
 
             // Primary Dispatch Phone
-            _buildInputLabel('PRIMARY DISPATCH PHONE'),
+            _buildInputLabel('PRIMARY DISPATCH PHONE (MOBILE NUMBER)'),
             const SizedBox(height: 6),
             Container(
               height: 48,
@@ -454,7 +549,11 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     child: TextField(
                       controller: _primaryPhoneController,
                       style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
-                      decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                      decoration: const InputDecoration(
+                        hintText: 'Enter mobile number',
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
                     ),
                   ),
                   Container(
@@ -541,12 +640,12 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              'Pick your domain. You can add secondary skills after identity verification.',
+              'Pick your domain. You can switch category anytime.',
               style: GoogleFonts.inter(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 14),
 
-            // 6 Specialty Cards Grid
+            // 8 Specialty Cards Grid
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -560,58 +659,69 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                   subtitle: 'Houseworker',
                   icon: Icons.cleaning_services_outlined,
                   isSelected: _selectedCategory == 'House Cleaning',
-                  onTap: () => setState(() => _selectedCategory = 'House Cleaning'),
+                  onTap: () => _selectCategory('House Cleaning'),
                 ),
                 _buildSpecialtyCard(
                   title: 'Electrician',
                   subtitle: 'Wiring & Meters',
                   icon: Icons.bolt_outlined,
                   isSelected: _selectedCategory == 'Electrician',
-                  onTap: () => setState(() => _selectedCategory = 'Electrician'),
+                  onTap: () => _selectCategory('Electrician'),
                 ),
                 _buildSpecialtyCard(
                   title: 'Plumber',
                   subtitle: 'Pipes & Fixtures',
                   icon: Icons.water_drop_outlined,
                   isSelected: _selectedCategory == 'Plumber',
-                  onTap: () => setState(() => _selectedCategory = 'Plumber'),
+                  onTap: () => _selectCategory('Plumber'),
                 ),
                 _buildSpecialtyCard(
                   title: 'Appliance Repair',
                   subtitle: 'AC & Fridge',
                   icon: Icons.kitchen_outlined,
                   isSelected: _selectedCategory == 'Appliance Repair',
-                  onTap: () => setState(() => _selectedCategory = 'Appliance Repair'),
+                  onTap: () => _selectCategory('Appliance Repair'),
                 ),
                 _buildSpecialtyCard(
                   title: 'Carpenter',
                   subtitle: 'Furniture & Locks',
                   icon: Icons.handyman_outlined,
                   isSelected: _selectedCategory == 'Carpenter',
-                  onTap: () => setState(() => _selectedCategory = 'Carpenter'),
+                  onTap: () => _selectCategory('Carpenter'),
+                ),
+                _buildSpecialtyCard(
+                  title: 'Driver',
+                  subtitle: 'Personal & Trips',
+                  icon: Icons.directions_car_outlined,
+                  isSelected: _selectedCategory == 'Driver',
+                  onTap: () => _selectCategory('Driver'),
                 ),
                 _buildSpecialtyCard(
                   title: 'Doctor & Home Care',
                   subtitle: 'Nursing Support',
                   icon: Icons.medical_services_outlined,
                   isSelected: _selectedCategory == 'Doctor & Home Care',
-                  onTap: () => setState(() => _selectedCategory = 'Doctor & Home Care'),
+                  onTap: () => _selectCategory('Doctor & Home Care'),
+                ),
+                _buildSpecialtyCard(
+                  title: 'Painter & Decorator',
+                  subtitle: 'Wall & Texture',
+                  icon: Icons.format_paint_outlined,
+                  isSelected: _selectedCategory == 'Painter & Decorator',
+                  onTap: () => _selectCategory('Painter & Decorator'),
                 ),
               ],
             ),
 
             const SizedBox(height: 16),
-            _buildInputLabel('APPLICABLE SUB-SERVICES'),
+            _buildInputLabel('APPLICABLE SUB-SERVICES FOR ${_selectedCategory.toUpperCase()}'),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                _buildSubServiceChip('Deep Cleaning'),
-                _buildSubServiceChip('Kitchen & Oven'),
-                _buildSubServiceChip('Floor Mopping & Buffing'),
-                _buildSubServiceChip('Bathroom Scrubbing'),
-              ],
+              children: (_categorySubServicesMap[_selectedCategory] ?? ['General Service', 'Inspection'])
+                  .map((sub) => _buildSubServiceChip(sub))
+                  .toList(),
             ),
 
             const SizedBox(height: 28),
@@ -631,70 +741,117 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             const SizedBox(height: 14),
 
             // Rate Card Box
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Builder(
+              builder: (context) {
+                final displayPrice = _selectedRate == 'Custom'
+                    ? (_customAmountController.text.trim().isEmpty ? '0' : _customAmountController.text.trim())
+                    : _selectedRate.replaceAll('₹', '').replaceAll('/day', '').trim();
+
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'FULL DAY RATE (8 HOURS)',
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 0.6),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'FULL DAY RATE (8 HOURS)',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 0.6),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: const Color(0xFFFEF08A), borderRadius: BorderRadius.circular(8)),
+                            child: Text(
+                              _selectedRate == 'Custom' ? 'CUSTOM' : 'STANDARD',
+                              style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF713F12)),
+                            ),
+                          ),
+                        ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(color: const Color(0xFFFEF08A), borderRadius: BorderRadius.circular(8)),
-                        child: Text('STANDARD', style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF713F12))),
+                      const SizedBox(height: 8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text('₹$displayPrice', style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                          const SizedBox(width: 6),
+                          Text('/ day', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Selectable Chips
+                      Row(
+                        children: [
+                          _buildRateOptionChip('₹800/day'),
+                          const SizedBox(width: 8),
+                          _buildRateOptionChip('₹1,200/day'),
+                          const SizedBox(width: 8),
+                          _buildRateOptionChip('₹1,800/day'),
+                          const SizedBox(width: 8),
+                          _buildRateOptionChip('Custom'),
+                        ],
+                      ),
+
+                      // Custom Amount Input Box when "Custom" is selected
+                      if (_selectedRate == 'Custom') ...[
+                        const SizedBox(height: 14),
+                        _buildInputLabel('ENTER CUSTOM RATE AMOUNT (₹)'),
+                        const SizedBox(height: 6),
+                        Container(
+                          height: 48,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: AppColors.primaryYellowDark, width: 1.5),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            children: [
+                              Text('₹', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: _customAmountController,
+                                  keyboardType: TextInputType.number,
+                                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                                  decoration: const InputDecoration(
+                                    hintText: 'Enter custom daily rate (e.g. 1500)',
+                                    border: InputBorder.none,
+                                    isDense: true,
+                                  ),
+                                  onChanged: (val) => setState(() {}),
+                                ),
+                              ),
+                              Text('/ day', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 14),
+                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                      const SizedBox(height: 12),
+
+                      Row(
+                        children: [
+                          const Icon(Icons.timer_outlined, size: 16, color: AppColors.textSecondary),
+                          const SizedBox(width: 8),
+                          Text('Overtime Add-on Rate', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark)),
+                          const Spacer(),
+                          Text('₹ 180 / hr', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                        ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text('₹1,200', style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                      const SizedBox(width: 6),
-                      Text('/ day', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Selectable Chips
-                  Row(
-                    children: [
-                      _buildRateOptionChip('₹800/day'),
-                      const SizedBox(width: 8),
-                      _buildRateOptionChip('₹1,200/day'),
-                      const SizedBox(width: 8),
-                      _buildRateOptionChip('₹1,800/day'),
-                      const SizedBox(width: 8),
-                      _buildRateOptionChip('Custom'),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, size: 16, color: AppColors.textSecondary),
-                      const SizedBox(width: 8),
-                      Text('Overtime Add-on Rate', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                      const Spacer(),
-                      Text('₹ 180 / hr', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                    ],
-                  ),
-                ],
-              ),
+                );
+              },
             ),
             const SizedBox(height: 12),
 
@@ -782,7 +939,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
             const SizedBox(height: 28),
 
-            // SECTION 5: SERVICE READINESS
+            // SECTION 5: SERVICE READINESS (COVID-19 REMOVED)
             _buildSectionHeader('5. SERVICE READINESS'),
             const SizedBox(height: 8),
             Text(
@@ -793,7 +950,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
             _buildCheckTile(
               icon: Icons.home_repair_service_outlined,
-              label: 'Own tools & cleaning kit',
+              label: 'Own tools & equipment kit',
               value: _chkOwnTools,
               onChanged: (val) => setState(() => _chkOwnTools = val ?? false),
             ),
@@ -806,13 +963,6 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             ),
             const SizedBox(height: 8),
             _buildCheckTile(
-              icon: Icons.verified_user_outlined,
-              label: 'COVID-19 vaccinated & verified ID',
-              value: _chkVaccinated,
-              onChanged: (val) => setState(() => _chkVaccinated = val ?? false),
-            ),
-            const SizedBox(height: 8),
-            _buildCheckTile(
               icon: Icons.near_me_outlined,
               label: '5.0 km radial travel readiness',
               value: _chkGeofenceReadiness,
@@ -821,7 +971,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
             const SizedBox(height: 28),
 
-            // SECTION 6: VERIFICATION VAULT
+            // SECTION 6: VERIFICATION VAULT (POLICE VERIFICATION REMOVED)
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -839,18 +989,6 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(8)),
                 child: Text('VERIFIED', style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF15803D))),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            _buildVaultCard(
-              icon: Icons.shield_outlined,
-              title: 'Police Verification State...',
-              subtitle: 'Certificate: DL-6841 • POLL...',
-              trailingWidget: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: const Color(0xFFFEF08A), borderRadius: BorderRadius.circular(8)),
-                child: Text('VALID 2026', style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF713F12))),
               ),
             ),
             const SizedBox(height: 10),

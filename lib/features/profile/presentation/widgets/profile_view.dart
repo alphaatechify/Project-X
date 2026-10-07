@@ -9,6 +9,7 @@ import 'personal_sos_contacts_modal.dart';
 import 'language_selector_modal.dart';
 import 'support_desk_modal.dart';
 import '../../../../services/auth_service.dart';
+import '../../../../core/storage/local_storage.dart';
 
 class ProfileView extends ConsumerStatefulWidget {
   const ProfileView({super.key});
@@ -18,7 +19,6 @@ class ProfileView extends ConsumerStatefulWidget {
 }
 
 class _ProfileViewState extends ConsumerState<ProfileView> {
-  bool _isProviderLive = false;
   String _selectedLanguage = 'English (IN)';
 
   void _handleLogout() {
@@ -49,6 +49,139 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openEditProfileModal() {
+    final profile = ref.read(currentUserProfileProvider);
+    final nameCtrl = TextEditingController(text: profile?.fullName ?? '');
+    final phoneCtrl = TextEditingController(text: profile?.phoneNumber ?? '');
+    final emailCtrl = TextEditingController(text: profile?.email ?? '');
+    final locCtrl = TextEditingController(text: profile?.location ?? '');
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Edit Profile Details',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  _buildEditField(label: 'FULL NAME', controller: nameCtrl, icon: Icons.person_outline_rounded),
+                  const SizedBox(height: 12),
+                  _buildEditField(label: 'MOBILE NUMBER', controller: phoneCtrl, icon: Icons.phone_outlined, keyboardType: TextInputType.phone),
+                  const SizedBox(height: 12),
+                  _buildEditField(label: 'EMAIL ADDRESS', controller: emailCtrl, icon: Icons.email_outlined, keyboardType: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _buildEditField(label: 'LOCATION / HUB', controller: locCtrl, icon: Icons.location_on_outlined),
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final authService = ref.read(authServiceProvider);
+                        await authService.updateProfile(
+                          fullName: nameCtrl.text.trim(),
+                          phoneNumber: phoneCtrl.text.trim(),
+                          email: emailCtrl.text.trim(),
+                          location: locCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Profile updated successfully!', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                              backgroundColor: const Color(0xFF15803D),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryYellow,
+                        foregroundColor: AppColors.textDark,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: Text('Save Changes', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEditField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 0.6)),
+        const SizedBox(height: 6),
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: AppColors.textSecondary),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: controller,
+                  keyboardType: keyboardType,
+                  style: GoogleFonts.inter(fontSize: 13.5, fontWeight: FontWeight.w600, color: AppColors.textDark),
+                  decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -208,21 +341,61 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                         final displayPhone = (profile != null && profile.phoneNumber.isNotEmpty) ? '+91 ${profile.phoneNumber}' : 'Phone not verified';
                         final displayLocation = (profile != null && profile.location.isNotEmpty) ? profile.location : 'Indiranagar, Bengaluru';
 
+                        final emailDisplay = (profile != null && profile.email.isNotEmpty) ? ' • ${profile.email}' : '';
+
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              displayName,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textDark,
-                              ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    displayName,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                InkWell(
+                                  onTap: _openEditProfileModal,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF08A),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFEAB308), width: 1),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.edit_rounded, size: 12, color: Color(0xFF713F12)),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Edit',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFF713F12),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '$displayPhone • $displayLocation',
+                              '$displayPhone$emailDisplay • $displayLocation',
                               style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(height: 8),
 
@@ -259,101 +432,108 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           const SizedBox(height: 16),
 
           // 3. Dual Mode / Go Live as Provider Banner
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF18181B),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Builder(
+            builder: (context) {
+              final isLive = ref.watch(isProviderLiveProvider);
+
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF18181B),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  padding: const EdgeInsets.all(18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.primaryYellow),
-                              const SizedBox(width: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.primaryYellow),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'DUAL MODE PROTOCOL',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: const Color(0xFFA1A1AA),
+                                      letterSpacing: 0.8,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
                               Text(
-                                'DUAL MODE PROTOCOL',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10.5,
+                                'Provider Mode',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 18,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFA1A1AA),
-                                  letterSpacing: 0.8,
+                                  color: Colors.white,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Provider Mode',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
+                          Switch.adaptive(
+                            value: isLive,
+                            activeTrackColor: AppColors.primaryYellow,
+                            onChanged: (val) {
+                              ref.read(isProviderLiveProvider.notifier).state = val;
+                              try {
+                                ref.read(sharedPreferencesProvider).setBool('is_provider_live', val);
+                              } catch (_) {}
+                            },
                           ),
                         ],
                       ),
-                      Switch.adaptive(
-                        value: _isProviderLive,
-                        activeTrackColor: AppColors.primaryYellow,
-                        onChanged: (val) {
-                          setState(() {
-                            _isProviderLive = val;
-                          });
-                        },
+                      const SizedBox(height: 10),
+                      Text(
+                        isLive
+                            ? '🟢 ONLINE • Accepting nearby service requests within 5.0 km radius.'
+                            : '● OFFLINE • Switch ON to accept instant bookings as a verified Provider near you.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          color: const Color(0xFFA1A1AA),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () => context.push(AppRoutes.providerProfile),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryYellow,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.textDark),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Edit Provider Profile & Rates →',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.textDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _isProviderLive
-                        ? '🟢 ONLINE • Accepting nearby service requests within 5.0 km radius.'
-                        : '● OFFLINE • Switch ON to accept instant bookings as a verified Provider near you.',
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      color: const Color(0xFFA1A1AA),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () => context.push(AppRoutes.providerProfile),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryYellow,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.textDark),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Edit Provider Profile & Rates →',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textDark,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 16),
