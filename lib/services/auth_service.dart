@@ -1,6 +1,9 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/logging/app_logger.dart';
+import '../core/storage/local_storage.dart';
 import '../core/supabase/supabase_provider.dart';
 
 class UserProfile {
@@ -59,6 +62,7 @@ class AuthService {
       if (response != null) {
         AppLogger.info('Supabase: Existing profile found for $cleanDigits');
         final profile = UserProfile.fromJson(response);
+        _saveProfile(profile);
         _ref.read(currentUserProfileProvider.notifier).state = profile;
         return true;
       }
@@ -67,6 +71,13 @@ class AuthService {
     }
 
     return false;
+  }
+
+  void _saveProfile(UserProfile profile) {
+    try {
+      final prefs = _ref.read(sharedPreferencesProvider);
+      prefs.setString('user_profile', jsonEncode(profile.toJson()));
+    } catch (_) {}
   }
 
   /// Registers a new user with full name and location details in Supabase
@@ -84,29 +95,40 @@ class AuthService {
       isRegistered: true,
     );
 
+    _saveProfile(newProfile);
     _ref.read(currentUserProfileProvider.notifier).state = newProfile;
 
     try {
-      AppLogger.info('Supabase: Saving profile to database...');
+      AppLogger.info('Supabase: Saving profile to database for $cleanDigits...');
       final authUser = _supabase.auth.currentUser;
 
       final data = {
         if (authUser != null) 'id': authUser.id,
         'phone_number': cleanDigits,
         'full_name': fullName,
+        'location': location,
         'updated_at': DateTime.now().toIso8601String(),
       };
 
-      await _supabase.from('profiles').upsert(data);
-      AppLogger.info('Supabase: Profile saved successfully for $cleanDigits');
-    } catch (e) {
-      AppLogger.warning('Supabase registerUser fallback: $e');
+      final response = await _supabase.from('profiles').upsert(
+        data,
+        onConflict: 'phone_number',
+      ).select();
+
+      AppLogger.info('Supabase: Profile saved successfully: $response');
+    } catch (e, stackTrace) {
+      AppLogger.error('Supabase registerUser failed', e, stackTrace);
+      debugPrint('⚠️ Supabase Profile Insert Error: $e');
     }
   }
 
   /// Sign out
   Future<void> signOut() async {
     _ref.read(currentUserProfileProvider.notifier).state = null;
+    try {
+      final prefs = _ref.read(sharedPreferencesProvider);
+      await prefs.remove('user_profile');
+    } catch (_) {}
     try {
       await _supabase.auth.signOut();
     } catch (e) {
@@ -115,8 +137,18 @@ class AuthService {
   }
 }
 
-/// Provider for current user profile state
-final currentUserProfileProvider = StateProvider<UserProfile?>((ref) => null);
+/// Provider for current user profile state with local persistence
+final currentUserProfileProvider = StateProvider<UserProfile?>((ref) {
+  try {
+    final prefs = ref.watch(sharedPreferencesProvider);
+    final raw = prefs.getString('user_profile');
+    if (raw != null && raw.isNotEmpty) {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      return UserProfile.fromJson(map);
+    }
+  } catch (_) {}
+  return null;
+});
 
 /// Provider exposing AuthService
 final authServiceProvider = Provider<AuthService>((ref) {

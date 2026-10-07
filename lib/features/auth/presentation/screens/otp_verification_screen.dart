@@ -96,6 +96,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
       return;
     }
 
+    if (_otpCode != '123456') {
+      setState(() {
+        _errorMessage = 'Invalid OTP code. Only 123456 is accepted.';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;

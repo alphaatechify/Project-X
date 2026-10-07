@@ -53,7 +53,7 @@ class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScree
     // Detect region / fallback gracefully to India with standard test formatting
     setState(() {
       _selectedCountry = Country.india;
-      _phoneController.text = PhoneFormatter.formatRawNumber('9876543210', Country.india);
+      _phoneController.text = PhoneFormatter.formatRawNumber('1234567890', Country.india);
       _errorMessage = null;
     });
 
@@ -85,6 +85,15 @@ class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScree
       return;
     }
 
+    final rawPhone = PhoneFormatter.getUnformattedDigits(_phoneController.text);
+    if (rawPhone != '1234567890') {
+      setState(() {
+        _errorMessage = 'Invalid number. Only 1234567890 is accepted for login.';
+      });
+      _phoneFocusNode.requestFocus();
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -99,7 +108,6 @@ class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScree
       _isLoading = false;
     });
 
-    final rawPhone = PhoneFormatter.getUnformattedDigits(_phoneController.text);
     final fullNumber = '${_selectedCountry.dialCode} $rawPhone';
 
     // Navigate to OTP verification screen with parameters

@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:project_x/app/router/routes.dart';
 import 'package:project_x/app/theme/app_colors.dart';
+import '../../../../services/auth_service.dart';
+import '../../../../core/supabase/supabase_provider.dart';
 
 class ProviderProfileScreen extends ConsumerStatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -31,6 +33,19 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   bool _chkGeofenceReadiness = true;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final profile = ref.read(currentUserProfileProvider);
+      if (profile != null) {
+        if (_primaryPhoneController.text.isEmpty && profile.phoneNumber.isNotEmpty) {
+          _primaryPhoneController.text = '+91 ${profile.phoneNumber}';
+        }
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _emailController.dispose();
     _primaryPhoneController.dispose();
@@ -39,7 +54,51 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
     super.dispose();
   }
 
-  void _handleSubmit() {
+  void _handleSubmit() async {
+    final profile = ref.read(currentUserProfileProvider);
+    final supabase = ref.read(supabaseClientProvider);
+
+    try {
+      final cleanDigits = _primaryPhoneController.text.replaceAll(RegExp(r'\D'), '');
+      final phone = (profile != null && profile.phoneNumber.isNotEmpty) ? profile.phoneNumber : cleanDigits;
+
+      // 1. Update user profile as provider
+      if (phone.isNotEmpty) {
+        await supabase.from('profiles').update({
+          'is_provider': true,
+          'bio': _bioController.text.trim(),
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('phone_number', phone);
+      }
+
+      // 2. Insert provider service offering into Supabase services table
+      final profileRow = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone_number', phone)
+          .maybeSingle();
+
+      if (profileRow != null && profileRow['id'] != null) {
+        final providerId = profileRow['id'];
+        final priceNumber = double.tryParse(_selectedRate.replaceAll(RegExp(r'[^\d.]'), '')) ?? 499.0;
+
+        await supabase.from('services').insert({
+          'provider_id': providerId,
+          'title': _selectedCategory,
+          'category': _selectedCategory.toLowerCase().replaceAll(' ', '_'),
+          'description': _bioController.text.trim(),
+          'price': priceNumber,
+          'price_unit': _selectedRate.contains('day') ? '/day' : '/hr',
+          'sub_categories': _selectedSubServices.toList(),
+          'is_available': true,
+        });
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error saving provider to Supabase: $e');
+    }
+
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -215,66 +274,83 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
               ),
               child: Row(
                 children: [
-                  Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: Image.asset(
-                          'assets/images/doctor_rahul_sharma.jpg',
-                          width: 54,
-                          height: 54,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            width: 54,
-                            height: 54,
-                            color: const Color(0xFF0F172A),
-                            child: const Icon(Icons.person_rounded, color: Colors.white, size: 30),
+                  Builder(
+                    builder: (context) {
+                      final profile = ref.watch(currentUserProfileProvider);
+                      final name = (profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner';
+                      final initial = name.isNotEmpty ? name[0].toUpperCase() : 'P';
+                      return Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              width: 54,
+                              height: 54,
+                              color: AppColors.primaryYellow,
+                              child: Center(
+                                child: Text(
+                                  initial,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textDark,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF06B6D4), // cyan dot
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 14,
+                              height: 14,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF06B6D4), // cyan dot
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                    child: Builder(
+                      builder: (context) {
+                        final profile = ref.watch(currentUserProfileProvider);
+                        final name = (profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Service Partner';
+                        final loc = (profile != null && profile.location.isNotEmpty) ? profile.location : 'Partner Hub';
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Row(
+                              children: [
+                                Text(
+                                  name,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF06B6D4)),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
                             Text(
-                              'Rahul Sharma',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.textDark,
+                              'Verified Partner • $loc',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.check_circle_rounded, size: 16, color: Color(0xFF06B6D4)),
                           ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Top Tier Partner • Gurugram Hub',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
+                        );
+                      },
                     ),
                   ),
                   Container(
