@@ -42,13 +42,6 @@ class AuthService {
   final SupabaseClient _supabase;
   final Ref _ref;
 
-  // Fallback cache of registered numbers
-  final Set<String> _registeredPhoneNumbers = {
-    '9876543210',
-    '+919876543210',
-    '9999999999',
-  };
-
   AuthService(this._supabase, this._ref);
 
   /// Checks if the phone number is already registered in Supabase database
@@ -70,24 +63,10 @@ class AuthService {
         return true;
       }
     } catch (e) {
-      AppLogger.warning('Supabase profile check fallback: $e');
+      AppLogger.warning('Supabase profile check failed: $e');
     }
 
-    // Check local fallback
-    final isLocal = _registeredPhoneNumbers.any(
-      (reg) => reg.replaceAll(RegExp(r'\D'), '') == cleanDigits,
-    );
-
-    if (isLocal) {
-      _ref.read(currentUserProfileProvider.notifier).state = UserProfile(
-        phoneNumber: cleanDigits,
-        fullName: 'Alex Morgan',
-        location: 'Indiranagar, Bengaluru',
-        isRegistered: true,
-      );
-    }
-
-    return isLocal;
+    return false;
   }
 
   /// Registers a new user with full name and location details in Supabase
@@ -97,7 +76,6 @@ class AuthService {
     required String location,
   }) async {
     final cleanDigits = phoneNumber.replaceAll(RegExp(r'\D'), '');
-    _registeredPhoneNumbers.add(cleanDigits);
 
     final newProfile = UserProfile(
       phoneNumber: cleanDigits,

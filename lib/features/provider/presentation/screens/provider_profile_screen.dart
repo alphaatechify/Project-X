@@ -14,12 +14,10 @@ class ProviderProfileScreen extends ConsumerStatefulWidget {
 
 class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   // Controllers
-  final TextEditingController _emailController = TextEditingController(text: 'rahul.care@kineticvolt.com');
-  final TextEditingController _primaryPhoneController = TextEditingController(text: '+91 98765 43210');
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _primaryPhoneController = TextEditingController();
   final TextEditingController _emergencyPhoneController = TextEditingController();
-  final TextEditingController _bioController = TextEditingController(
-    text: 'Experienced professional with over 8 years specializing in deep household sanitation, eco-friendly chemical cleaning, and quick kitchen degreasing. Punctual, polite',
-  );
+  final TextEditingController _bioController = TextEditingController();
 
   // States
   String _selectedCategory = 'House Cleaning';

@@ -204,9 +204,9 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                     child: Builder(
                       builder: (context) {
                         final profile = ref.watch(currentUserProfileProvider);
-                        final displayName = profile?.fullName.isNotEmpty == true ? profile!.fullName : 'Rahul Sharma';
-                        final displayPhone = profile?.phoneNumber.isNotEmpty == true ? profile!.phoneNumber : '98765 43210';
-                        final displayLocation = profile?.location.isNotEmpty == true ? profile!.location : 'Indiranagar, Bengaluru';
+                        final displayName = (profile != null && profile.fullName.isNotEmpty) ? profile.fullName : 'Guest User';
+                        final displayPhone = (profile != null && profile.phoneNumber.isNotEmpty) ? '+91 ${profile.phoneNumber}' : 'Phone not verified';
+                        final displayLocation = (profile != null && profile.location.isNotEmpty) ? profile.location : 'Indiranagar, Bengaluru';
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +221,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              '+91 $displayPhone • $displayLocation',
+                              '$displayPhone • $displayLocation',
                               style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary),
                             ),
                             const SizedBox(height: 8),
