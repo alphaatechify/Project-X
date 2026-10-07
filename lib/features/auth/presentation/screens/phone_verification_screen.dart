@@ -21,7 +21,7 @@ class PhoneVerificationScreen extends ConsumerStatefulWidget {
 
 class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScreen> {
   Country _selectedCountry = Country.india;
-  final TextEditingController _phoneController = TextEditingController(text: '98765 43210');
+  final TextEditingController _phoneController = TextEditingController();
   final FocusNode _phoneFocusNode = FocusNode();
 
   String? _errorMessage;

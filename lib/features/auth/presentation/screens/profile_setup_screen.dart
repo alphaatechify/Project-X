@@ -22,7 +22,7 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
-  final TextEditingController _nameController = TextEditingController(text: 'Alex Morgan');
+  final TextEditingController _nameController = TextEditingController();
   final FocusNode _nameFocusNode = FocusNode();
 
   final String _currentLocation = 'Indiranagar 100ft Rd';
