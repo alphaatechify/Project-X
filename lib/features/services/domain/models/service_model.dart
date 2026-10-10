@@ -18,9 +18,12 @@ class ServiceModel {
   final String totalReviews;
   final String startingPrice;
   final List<String> subCategories;
+  final List<SubServiceItem> subServices;
   final List<String> highlights;
   final String bannerNotice;
   final String avgEta;
+  final String imageAsset;
+  final Alignment imageAlignment;
 
   const ServiceModel({
     required this.id,
@@ -40,8 +43,21 @@ class ServiceModel {
     required this.totalReviews,
     required this.startingPrice,
     required this.subCategories,
+    this.subServices = const [],
     required this.highlights,
     required this.bannerNotice,
     required this.avgEta,
+    this.imageAsset = 'assets/images/plumbing_service.jpg',
+    this.imageAlignment = Alignment.center,
+  });
+}
+
+class SubServiceItem {
+  final String title;
+  final String description;
+
+  const SubServiceItem({
+    required this.title,
+    required this.description,
   });
 }

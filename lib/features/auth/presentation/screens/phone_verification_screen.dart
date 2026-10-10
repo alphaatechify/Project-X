@@ -149,9 +149,12 @@ class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScree
           ),
 
           // Content Layout
-          SafeArea(
-            child: Column(
-              children: [
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SafeArea(
+                child: Column(
+                  children: [
                 // Top Header Row
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -274,8 +277,10 @@ class _PhoneVerificationScreenState extends ConsumerState<PhoneVerificationScree
               ],
             ),
           ),
-        ],
+        ),
       ),
-    );
-  }
+    ],
+  ),
+);
+}
 }

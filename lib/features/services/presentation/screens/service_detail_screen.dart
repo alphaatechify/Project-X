@@ -150,14 +150,17 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Top Navigation Bar
-            _buildAppBar(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: Column(
+              children: [
+                // Top Navigation Bar
+                _buildAppBar(),
 
-            // Scrollable Content
-            Expanded(
-              child: CustomScrollView(
+                // Scrollable Content
+                Expanded(
+                  child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
                   // Hero Header Banner tailored to the service
@@ -274,6 +277,132 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     ),
                   ),
 
+                  // Top 5 Master Services Included
+                  if (_service.subServices.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 20, right: 20, top: 16, bottom: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'TOP 5 SERVICES INCLUDED',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF854D0E),
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                Text(
+                                  '5 Specializations',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            ...List.generate(_service.subServices.length, (index) {
+                              final sub = _service.subServices[index];
+                              final isSelected = _selectedSubCategory.toLowerCase() == sub.title.toLowerCase();
+                              return InkWell(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedSubCategory = sub.title;
+                                  });
+                                },
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: isSelected ? _service.themeBgColor : AppColors.surfaceWhite,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isSelected ? _service.themeColor : const Color(0xFFE2E8F0),
+                                      width: isSelected ? 1.4 : 1.0,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 26,
+                                        height: 26,
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? _service.themeColor : _service.cardIconBgColor,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            '${index + 1}',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: isSelected ? Colors.white : _service.themeColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    sub.title,
+                                                    style: GoogleFonts.plusJakartaSans(
+                                                      fontSize: 13.5,
+                                                      fontWeight: FontWeight.w800,
+                                                      color: AppColors.textDark,
+                                                    ),
+                                                  ),
+                                                ),
+                                                if (isSelected)
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: _service.themeColor,
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    child: Text(
+                                                      'SELECTED',
+                                                      style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              sub.description,
+                                              style: GoogleFonts.inter(
+                                                fontSize: 11.5,
+                                                color: AppColors.textSecondary,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+
                   // Section Title: Available Professionals Count
                   SliverToBoxAdapter(
                     child: Padding(
@@ -371,8 +500,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildAppBar() {
     return Padding(
@@ -436,157 +567,219 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             ),
           ],
         ),
-        padding: const EdgeInsets.all(20),
+        clipBehavior: Clip.antiAlias,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: _service.themeColor,
-                    borderRadius: BorderRadius.circular(16),
+            if (_service.imageAsset.isNotEmpty)
+              Stack(
+                children: [
+                  Image.asset(
+                    _service.imageAsset,
+                    height: 150,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                    alignment: _service.imageAlignment,
+                    errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
                   ),
-                  child: Center(
-                    child: Icon(_service.icon, color: Colors.white, size: 24),
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.15),
+                            _service.themeBgColor.withValues(alpha: 0.95),
+                          ],
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: _service.tagBgColor,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              _service.tag,
-                              style: GoogleFonts.inter(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
-                                color: _service.tagTextColor,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
-                          const SizedBox(width: 2),
+                          const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 14),
+                          const SizedBox(width: 5),
                           Text(
-                            '${_service.rating}',
+                            'Verified Indian Pro',
                             style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.textDark,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
                             ),
-                          ),
-                          Text(
-                            ' (${_service.totalReviews})',
-                            style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _service.title,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'STARTING AT',
-                      style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppColors.textMuted),
                     ),
-                    Text(
-                      _service.startingPrice,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _service.themeColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            Text(
-              _service.fullDescription,
-              style: GoogleFonts.inter(
-                fontSize: 12.5,
-                color: AppColors.textDark.withValues(alpha: 0.85),
-                height: 1.45,
-              ),
-            ),
-
-            const SizedBox(height: 14),
-
-            // Highlights Row
-            Column(
-              children: _service.highlights.map((highlight) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    children: [
-                      Icon(Icons.check_circle_rounded, size: 14, color: _service.themeColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        highlight,
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textDark,
-                        ),
-                      ),
-                    ],
                   ),
-                );
-              }).toList(),
-            ),
-
-            const SizedBox(height: 12),
-
-            // Notice Banner Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: _service.themeColor.withValues(alpha: 0.2)),
+                ],
               ),
-              child: Row(
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      _service.bannerNotice,
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textDark,
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: _service.themeColor,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                          child: Icon(_service.icon, color: Colors.white, size: 24),
+                        ),
                       ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _service.tagBgColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    _service.tag,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 9.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: _service.tagTextColor,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.star_rounded, size: 14, color: Color(0xFFD97706)),
+                                const SizedBox(width: 2),
+                                Text(
+                                  '${_service.rating}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.textDark,
+                                  ),
+                                ),
+                                Text(
+                                  ' (${_service.totalReviews})',
+                                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _service.title,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'STARTING AT',
+                            style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: AppColors.textMuted),
+                          ),
+                          Text(
+                            _service.startingPrice,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: _service.themeColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  Text(
+                    _service.fullDescription,
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      color: AppColors.textDark.withValues(alpha: 0.85),
+                      height: 1.45,
                     ),
                   ),
-                  Text(
-                    'ETA: ${_service.avgEta}',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: _service.themeColor,
+
+                  const SizedBox(height: 14),
+
+                  // Highlights Row
+                  Column(
+                    children: _service.highlights.map((highlight) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Icon(Icons.check_circle_rounded, size: 14, color: _service.themeColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              highlight,
+                              style: GoogleFonts.inter(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textDark,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Notice Banner Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: _service.themeColor.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            _service.bannerNotice,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textDark,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'ETA: ${_service.avgEta}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            color: _service.themeColor,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

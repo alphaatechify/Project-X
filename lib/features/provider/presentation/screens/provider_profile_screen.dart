@@ -25,8 +25,8 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   final TextEditingController _customAmountController = TextEditingController(text: '1500');
 
   // States
-  String _selectedCategory = 'House Cleaning';
-  final Set<String> _selectedSubServices = {'Deep Cleaning', 'Kitchen & Oven'};
+  String _selectedCategory = 'Plumbing';
+  final Set<String> _selectedSubServices = {'Plumbing Installation', 'Plumbing Repair'};
   String _selectedRate = '₹1,200/day';
   
   // Checklist State
@@ -35,14 +35,76 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   bool _chkGeofenceReadiness = true;
 
   final Map<String, List<String>> _categorySubServicesMap = {
-    'House Cleaning': ['Deep Cleaning', 'Kitchen & Oven', 'Floor Mopping & Buffing', 'Bathroom Scrubbing'],
-    'Electrician': ['Wiring & Switches', 'Fan & Lights', 'Fuse & Meter Board', 'Appliance Installation'],
-    'Plumber': ['Tap & Pipe Leakage', 'Drain Unblocking', 'Water Heater Setup', 'Toilet Repair'],
-    'Appliance Repair': ['AC Service & Gas Refill', 'Refrigerator Repair', 'Washing Machine', 'Microwave Repair'],
-    'Carpenter': ['Door & Lock Repair', 'Custom Furniture', 'Modular Kitchen', 'Wood Polishing'],
-    'Driver': ['Personal Chauffeur', 'Outstation Trip', 'Airport Drop', 'Daily Commute Driver'],
-    'Doctor & Home Care': ['General Checkup', 'Nursing & Dressing', 'Elderly Care', 'Physiotherapy'],
-    'Painter & Decorator': ['Full House Painting', 'Waterproofing', 'Wall Textures', 'Touch-up Painting'],
+    'Plumbing': [
+      'Plumbing Installation',
+      'Plumbing Repair',
+      'Water Leakage Repair',
+      'Drain & Toilet Blockage Removal',
+      'Plumbing Replacement',
+    ],
+    'Electrician': [
+      'Electrical Installation',
+      'Electrical Repair',
+      'Wiring & Rewiring',
+      'Fan & Light Services',
+      'Power & Electrical Fault Repair',
+    ],
+    'Housekeeping': [
+      'Home Cleaning',
+      'Deep Cleaning',
+      'Bathroom Cleaning',
+      'Kitchen Cleaning',
+      'Sofa & Carpet Cleaning',
+    ],
+    'Painter': [
+      'Interior Painting',
+      'Exterior Painting',
+      'Wall Repair & Painting',
+      'Texture & Decorative Painting',
+      'Repainting & Touch-Up',
+    ],
+    'Health Coach': [
+      'Fitness & Exercise Coaching',
+      'Weight Management Coaching',
+      'Nutrition & Diet Coaching',
+      'Lifestyle & Habit Coaching',
+      'Personal Wellness Coaching',
+    ],
+    'Home Appliances': [
+      'Refrigerator Repair & Service',
+      'Washing Machine Repair & Service',
+      'AC Repair & Service',
+      'Microwave Oven Repair & Service',
+      'TV Repair & Service',
+    ],
+    'Business & Digital Services': [
+      'Digital Marketing',
+      'Video Editing',
+      'Website Development',
+      'Graphic Design',
+      'Business & Growth Services',
+    ],
+    'Construction Materials Supplier': [
+      'Cement & Concrete Supply',
+      'Sand & Aggregate Supply',
+      'Bricks & Blocks Supply',
+      'Steel & TMT Supply',
+      'Construction Materials Supply',
+    ],
+    'Carpenter': [
+      'Furniture Repair',
+      'Furniture Installation & Assembly',
+      'Custom Furniture Making',
+      'Door & Window Services',
+      'Woodwork & Carpentry',
+    ],
+    'Delivery': [
+      'Parcel & Document Delivery',
+      'Food & Grocery Delivery',
+      'Local Same-Day Delivery',
+      'Pickup & Drop Service',
+      'Business & Commercial Delivery',
+    ],
   };
 
   void _selectCategory(String cat) {
@@ -110,46 +172,77 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
       priceNumber = double.tryParse(_selectedRate.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1200.0;
     }
 
+    // 1. Update Profile in local state, SharedPreferences & Supabase
+    await authService.updateProfile(
+      fullName: name,
+      phoneNumber: phone,
+      email: email,
+      bio: bio,
+      isProvider: true,
+    );
+
+    // 2. Set provider LIVE state
+    ref.read(isProviderLiveProvider.notifier).state = true;
     try {
-      // 1. Update Profile in local state, SharedPreferences & Supabase
-      await authService.updateProfile(
-        fullName: name,
-        phoneNumber: phone,
-        email: email,
-        bio: bio,
-        isProvider: true,
-      );
+      final prefs = ref.read(sharedPreferencesProvider);
+      await prefs.setBool('is_provider_live', true);
+    } catch (_) {}
 
-      // 2. Set provider LIVE state
-      ref.read(isProviderLiveProvider.notifier).state = true;
+    // 3. Find provider ID from profile
+    String? providerId = (profile != null && profile.id.isNotEmpty) ? profile.id : null;
+    if (providerId == null) {
       try {
-        final prefs = ref.read(sharedPreferencesProvider);
-        await prefs.setBool('is_provider_live', true);
-      } catch (_) {}
+        var profileRow = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('phone_number', phone)
+            .maybeSingle();
 
-      // 3. Insert or update service in Supabase services table
-      final profileRow = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('phone_number', phone)
-          .maybeSingle();
-
-      if (profileRow != null && profileRow['id'] != null) {
-        final providerId = profileRow['id'];
-
-        await supabase.from('services').insert({
-          'provider_id': providerId,
-          'title': _selectedCategory,
-          'category': _selectedCategory.toLowerCase().replaceAll(' ', '_'),
-          'description': bio.isNotEmpty ? bio : 'Professional $_selectedCategory service by $name',
-          'price': priceNumber,
-          'price_unit': '/day',
-          'sub_categories': _selectedSubServices.toList(),
-          'is_available': true,
-        });
+        if (profileRow == null && !phone.startsWith('91')) {
+          profileRow = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('phone_number', '91$phone')
+              .maybeSingle();
+        }
+        if (profileRow != null && profileRow['id'] != null) {
+          providerId = profileRow['id'].toString();
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error getting provider profile ID: $e');
       }
+    }
+
+    // 4. Insert service offering into Supabase services table
+    try {
+      final serviceData = {
+        if (providerId != null) 'provider_id': providerId,
+        'title': _selectedCategory,
+        'category': _selectedCategory.toLowerCase().replaceAll(' ', '_'),
+        'description': bio.isNotEmpty ? bio : 'Professional $_selectedCategory service by $name',
+        'price': priceNumber,
+        'price_unit': '/day',
+        'sub_categories': _selectedSubServices.toList(),
+        'is_available': true,
+      };
+
+      final inserted = await supabase.from('services').insert(serviceData).select();
+      debugPrint('✅ Service saved in Supabase successfully: $inserted');
     } catch (e) {
-      debugPrint('⚠️ Error saving provider to Supabase: $e');
+      debugPrint('⚠️ Error saving service to Supabase: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Supabase Services Insert: $e',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
     }
 
     if (!mounted) return;
@@ -162,7 +255,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                'Profile Updated! You are now LIVE as a verified Service Pro.',
+                'Profile & Service Updated! You are LIVE on the dispatch network.',
                 style: GoogleFonts.inter(fontWeight: FontWeight.w600),
               ),
             ),
@@ -230,9 +323,12 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1080),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             // Top Yellow Header Banner
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -645,72 +741,104 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
             ),
             const SizedBox(height: 14),
 
-            // 8 Specialty Cards Grid
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              childAspectRatio: 1.45,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              children: [
-                _buildSpecialtyCard(
-                  title: 'House Cleaning',
-                  subtitle: 'Houseworker',
-                  icon: Icons.cleaning_services_outlined,
-                  isSelected: _selectedCategory == 'House Cleaning',
-                  onTap: () => _selectCategory('House Cleaning'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Electrician',
-                  subtitle: 'Wiring & Meters',
-                  icon: Icons.bolt_outlined,
-                  isSelected: _selectedCategory == 'Electrician',
-                  onTap: () => _selectCategory('Electrician'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Plumber',
-                  subtitle: 'Pipes & Fixtures',
-                  icon: Icons.water_drop_outlined,
-                  isSelected: _selectedCategory == 'Plumber',
-                  onTap: () => _selectCategory('Plumber'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Appliance Repair',
-                  subtitle: 'AC & Fridge',
-                  icon: Icons.kitchen_outlined,
-                  isSelected: _selectedCategory == 'Appliance Repair',
-                  onTap: () => _selectCategory('Appliance Repair'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Carpenter',
-                  subtitle: 'Furniture & Locks',
-                  icon: Icons.handyman_outlined,
-                  isSelected: _selectedCategory == 'Carpenter',
-                  onTap: () => _selectCategory('Carpenter'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Driver',
-                  subtitle: 'Personal & Trips',
-                  icon: Icons.directions_car_outlined,
-                  isSelected: _selectedCategory == 'Driver',
-                  onTap: () => _selectCategory('Driver'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Doctor & Home Care',
-                  subtitle: 'Nursing Support',
-                  icon: Icons.medical_services_outlined,
-                  isSelected: _selectedCategory == 'Doctor & Home Care',
-                  onTap: () => _selectCategory('Doctor & Home Care'),
-                ),
-                _buildSpecialtyCard(
-                  title: 'Painter & Decorator',
-                  subtitle: 'Wall & Texture',
-                  icon: Icons.format_paint_outlined,
-                  isSelected: _selectedCategory == 'Painter & Decorator',
-                  onTap: () => _selectCategory('Painter & Decorator'),
-                ),
-              ],
+            // 10 Specialty Cards Grid
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                int crossAxisCount = 2;
+                double childAspectRatio = 1.45;
+                if (width >= 860) {
+                  crossAxisCount = 4;
+                  childAspectRatio = 1.6;
+                } else if (width >= 600) {
+                  crossAxisCount = 3;
+                  childAspectRatio = 1.5;
+                } else {
+                  crossAxisCount = 2;
+                  childAspectRatio = 1.45;
+                }
+
+                return GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: crossAxisCount,
+                  childAspectRatio: childAspectRatio,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  children: [
+                    _buildSpecialtyCard(
+                      title: 'Plumbing',
+                      subtitle: 'Leaks & Fixtures',
+                      icon: Icons.plumbing_rounded,
+                      isSelected: _selectedCategory == 'Plumbing',
+                      onTap: () => _selectCategory('Plumbing'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Electrician',
+                      subtitle: 'Wiring & Power',
+                      icon: Icons.bolt_rounded,
+                      isSelected: _selectedCategory == 'Electrician',
+                      onTap: () => _selectCategory('Electrician'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Housekeeping',
+                      subtitle: 'Deep Clean & Hygiene',
+                      icon: Icons.cleaning_services_rounded,
+                      isSelected: _selectedCategory == 'Housekeeping',
+                      onTap: () => _selectCategory('Housekeeping'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Painter',
+                      subtitle: 'Wall & Texture',
+                      icon: Icons.format_paint_rounded,
+                      isSelected: _selectedCategory == 'Painter',
+                      onTap: () => _selectCategory('Painter'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Health Coach',
+                      subtitle: 'Fitness & Wellness',
+                      icon: Icons.fitness_center_rounded,
+                      isSelected: _selectedCategory == 'Health Coach',
+                      onTap: () => _selectCategory('Health Coach'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Home Appliances',
+                      subtitle: 'AC, Fridge & TV',
+                      icon: Icons.kitchen_rounded,
+                      isSelected: _selectedCategory == 'Home Appliances',
+                      onTap: () => _selectCategory('Home Appliances'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Business & Digital Services',
+                      subtitle: 'Web, Video & Growth',
+                      icon: Icons.devices_rounded,
+                      isSelected: _selectedCategory == 'Business & Digital Services',
+                      onTap: () => _selectCategory('Business & Digital Services'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Construction Materials Supplier',
+                      subtitle: 'Cement, Sand & Steel',
+                      icon: Icons.foundation_rounded,
+                      isSelected: _selectedCategory == 'Construction Materials Supplier',
+                      onTap: () => _selectCategory('Construction Materials Supplier'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Carpenter',
+                      subtitle: 'Furniture & Woodwork',
+                      icon: Icons.handyman_rounded,
+                      isSelected: _selectedCategory == 'Carpenter',
+                      onTap: () => _selectCategory('Carpenter'),
+                    ),
+                    _buildSpecialtyCard(
+                      title: 'Delivery',
+                      subtitle: 'Parcels & Same Day',
+                      icon: Icons.local_shipping_rounded,
+                      isSelected: _selectedCategory == 'Delivery',
+                      onTap: () => _selectCategory('Delivery'),
+                    ),
+                  ],
+                );
+              },
             ),
 
             const SizedBox(height: 16),
@@ -1103,8 +1231,10 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildSectionHeader(String title, {String? badgeText}) {
     return Row(

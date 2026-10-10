@@ -61,9 +61,12 @@ class _BookingsViewState extends State<BookingsView> {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1080),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           const SizedBox(height: 8),
 
           // 1. Top Header Row
@@ -230,8 +233,10 @@ class _BookingsViewState extends State<BookingsView> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildSupportBanner() {
     return Container(

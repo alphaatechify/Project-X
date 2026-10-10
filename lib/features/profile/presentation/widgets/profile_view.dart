@@ -235,9 +235,12 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 32),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1080),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
           const SizedBox(height: 8),
 
           // 1. Top Header Row
@@ -680,8 +683,10 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildLocationTile({required IconData icon, required String title, required String subtitle}) {
     return Container(
