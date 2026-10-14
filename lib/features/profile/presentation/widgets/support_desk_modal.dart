@@ -112,12 +112,12 @@ class SupportDeskModal extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Action 3: Provider Earnings & Distribution FAQ
+          // Action 3: Provider Operations Guide & Dispatch FAQ
           _buildActionTile(
             context: context,
-            icon: Icons.payments_outlined,
-            title: 'Provider Earnings & Tax Guide',
-            subtitle: 'Understand payouts, TDS, GST invoice & 0% commission',
+            icon: Icons.menu_book_outlined,
+            title: 'Provider Operations & Dispatch Guide',
+            subtitle: 'Understand instant dispatch, job verification & quality standards',
             badge: 'GUIDE',
             badgeBg: const Color(0xFFF1F5F9),
             badgeTextColor: AppColors.textDark,
@@ -125,7 +125,7 @@ class SupportDeskModal extends StatelessWidget {
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Opening Provider Earnings & Tax Guide...', style: GoogleFonts.inter()),
+                  content: Text('Opening Provider Operations & Dispatch Guide...', style: GoogleFonts.inter()),
                 ),
               );
             },

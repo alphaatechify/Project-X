@@ -22,12 +22,12 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
   final TextEditingController _primaryPhoneController = TextEditingController();
   final TextEditingController _emergencyPhoneController = TextEditingController();
   final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _customAmountController = TextEditingController(text: '1500');
 
   // States
   String _selectedCategory = 'Plumbing';
   final Set<String> _selectedSubServices = {'Plumbing Installation', 'Plumbing Repair'};
-  String _selectedRate = '₹1,200/day';
+  String _selectedShift = 'Full Day (8:00 AM - 8:00 PM)';
+  final Set<String> _selectedWorkingDays = {'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'};
   
   // Checklist State
   bool _chkOwnTools = true;
@@ -150,7 +150,6 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
     _primaryPhoneController.dispose();
     _emergencyPhoneController.dispose();
     _bioController.dispose();
-    _customAmountController.dispose();
     super.dispose();
   }
 
@@ -165,12 +164,7 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
     final email = _emailController.text.trim();
     final bio = _bioController.text.trim();
 
-    double priceNumber = 1200.0;
-    if (_selectedRate == 'Custom') {
-      priceNumber = double.tryParse(_customAmountController.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1500.0;
-    } else {
-      priceNumber = double.tryParse(_selectedRate.replaceAll(RegExp(r'[^\d.]'), '')) ?? 1200.0;
-    }
+    const double priceNumber = 1200.0;
 
     // 1. Update Profile in local state, SharedPreferences & Supabase
     await authService.updateProfile(
@@ -853,142 +847,92 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
             const SizedBox(height: 28),
 
-            // SECTION 3: PRICING MODEL
-            _buildSectionHeader('3. PRICING MODEL'),
+            // SECTION 3: AVAILABILITY & SHIFT PREFERENCES
+            _buildSectionHeader('3. SHIFT AVAILABILITY & WORKING HOURS'),
             const SizedBox(height: 8),
             Text(
-              'Daily Charge & Pricing Rate',
+              'Duty Shifts & Working Schedule',
               style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark),
             ),
             const SizedBox(height: 2),
             Text(
-              'Set your standard full-day (8 hrs) or base hourly dispatch charge.',
+              'Select your preferred daily dispatch hours and active service days.',
               style: GoogleFonts.inter(fontSize: 12.5, color: AppColors.textSecondary),
             ),
             const SizedBox(height: 14),
 
-            // Rate Card Box
-            Builder(
-              builder: (context) {
-                final displayPrice = _selectedRate == 'Custom'
-                    ? (_customAmountController.text.trim().isEmpty ? '0' : _customAmountController.text.trim())
-                    : _selectedRate.replaceAll('₹', '').replaceAll('/day', '').trim();
-
-                return Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            // Shift Card Box
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'FULL DAY RATE (8 HOURS)',
-                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 0.6),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: const Color(0xFFFEF08A), borderRadius: BorderRadius.circular(8)),
-                            child: Text(
-                              _selectedRate == 'Custom' ? 'CUSTOM' : 'STANDARD',
-                              style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF713F12)),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        'ACTIVE ON-DUTY SHIFT',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.textSecondary, letterSpacing: 0.6),
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text('₹$displayPrice', style: GoogleFonts.plusJakartaSans(fontSize: 28, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                          const SizedBox(width: 6),
-                          Text('/ day', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Selectable Chips
-                      Row(
-                        children: [
-                          _buildRateOptionChip('₹800/day'),
-                          const SizedBox(width: 8),
-                          _buildRateOptionChip('₹1,200/day'),
-                          const SizedBox(width: 8),
-                          _buildRateOptionChip('₹1,800/day'),
-                          const SizedBox(width: 8),
-                          _buildRateOptionChip('Custom'),
-                        ],
-                      ),
-
-                      // Custom Amount Input Box when "Custom" is selected
-                      if (_selectedRate == 'Custom') ...[
-                        const SizedBox(height: 14),
-                        _buildInputLabel('ENTER CUSTOM RATE AMOUNT (₹)'),
-                        const SizedBox(height: 6),
-                        Container(
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.primaryYellowDark, width: 1.5),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
-                          child: Row(
-                            children: [
-                              Text('₹', style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: TextField(
-                                  controller: _customAmountController,
-                                  keyboardType: TextInputType.number,
-                                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textDark),
-                                  decoration: const InputDecoration(
-                                    hintText: 'Enter custom daily rate (e.g. 1500)',
-                                    border: InputBorder.none,
-                                    isDense: true,
-                                  ),
-                                  onChanged: (val) => setState(() {}),
-                                ),
-                              ),
-                              Text('/ day', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                            ],
-                          ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(color: const Color(0xFFDCFCE7), borderRadius: BorderRadius.circular(8)),
+                        child: Text(
+                          'ON-DUTY',
+                          style: GoogleFonts.inter(fontSize: 9.5, fontWeight: FontWeight.w800, color: const Color(0xFF15803D)),
                         ),
-                      ],
-
-                      const SizedBox(height: 14),
-                      const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                      const SizedBox(height: 12),
-
-                      Row(
-                        children: [
-                          const Icon(Icons.timer_outlined, size: 16, color: AppColors.textSecondary),
-                          const SizedBox(width: 8),
-                          Text('Overtime Add-on Rate', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textDark)),
-                          const Spacer(),
-                          Text('₹ 180 / hr', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                        ],
                       ),
                     ],
                   ),
-                );
-              },
+                  const SizedBox(height: 8),
+                  Text(
+                    _selectedShift,
+                    style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textDark),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Selectable Shift Chips
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildShiftOptionChip('Full Day (8:00 AM - 8:00 PM)'),
+                      _buildShiftOptionChip('Morning Shift (8:00 AM - 2:00 PM)'),
+                      _buildShiftOptionChip('Evening Shift (2:00 PM - 8:00 PM)'),
+                      _buildShiftOptionChip('Flexible On-Call'),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+                  const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                  const SizedBox(height: 12),
+
+                  _buildInputLabel('ACTIVE WORKING DAYS'),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                        .map((day) => _buildDayChip(day))
+                        .toList(),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
 
-            // 0% Commission Guarantee Banner
+            // Quality & Standards Guarantee Banner
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFECFEFF),
+                color: const Color(0xFFF0FDF4),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFA5F3FC), width: 1),
+                border: Border.all(color: const Color(0xFFBBF7D0), width: 1),
               ),
               child: Row(
                 children: [
@@ -996,11 +940,11 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     width: 36,
                     height: 36,
                     decoration: const BoxDecoration(
-                      color: Color(0xFF0891B2),
+                      color: Color(0xFF16A34A),
                       shape: BoxShape.circle,
                     ),
                     child: const Center(
-                      child: Icon(Icons.verified_outlined, color: Colors.white, size: 20),
+                      child: Icon(Icons.verified_user_rounded, color: Colors.white, size: 20),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1008,9 +952,9 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('0% Commission Guarantee', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: const Color(0xFF0E7490))),
+                        Text('100% Quality & Verified Pro Standards', style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: const Color(0xFF15803D))),
                         const SizedBox(height: 2),
-                        Text('0% platform commission on your first 10 bookings. 100% direct instant bank payout.', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF155E75), height: 1.3)),
+                        Text('Verified providers receive direct priority dispatches with instant customer connection.', style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF166534), height: 1.3)),
                       ],
                     ),
                   ),
@@ -1154,12 +1098,13 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
 
             const SizedBox(height: 20),
 
-            // Boost Daily Earnings Banner
+            // Priority Dispatch & Pro Partner Banner
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
@@ -1174,9 +1119,9 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Boost Daily Earnings', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                        Text('Priority Instant Dispatch', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textDark)),
                         const SizedBox(height: 2),
-                        Text('Accepting 2 instant jobs/day yields ~₹36,000/mo.', style: GoogleFonts.inter(fontSize: 11.5, color: AppColors.textSecondary)),
+                        Text('Maintain 95%+ acceptance to receive instant 15-minute emergency customer leads.', style: GoogleFonts.inter(fontSize: 11.5, color: AppColors.textSecondary)),
                       ],
                     ),
                   ),
@@ -1396,26 +1341,61 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
     );
   }
 
-  Widget _buildRateOptionChip(String rateText) {
-    final isSelected = _selectedRate == rateText;
-    return Expanded(
-      child: InkWell(
-        onTap: () => setState(() => _selectedRate = rateText),
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? AppColors.primaryYellow : const Color(0xFFE2E8F0),
-            borderRadius: BorderRadius.circular(10),
+  Widget _buildShiftOptionChip(String shiftText) {
+    final isSelected = _selectedShift == shiftText;
+    return InkWell(
+      onTap: () => setState(() => _selectedShift = shiftText),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primaryYellow : const Color(0xFFE2E8F0),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primaryYellowDark : Colors.transparent,
+            width: 1,
           ),
-          child: Center(
-            child: Text(
-              rateText,
-              style: GoogleFonts.inter(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-                color: AppColors.textDark,
-              ),
+        ),
+        child: Text(
+          shiftText,
+          style: GoogleFonts.inter(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+            color: AppColors.textDark,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDayChip(String day) {
+    final isSelected = _selectedWorkingDays.contains(day);
+    return InkWell(
+      onTap: () {
+        setState(() {
+          if (isSelected) {
+            _selectedWorkingDays.remove(day);
+          } else {
+            _selectedWorkingDays.add(day);
+          }
+        });
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 44,
+        height: 38,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0)),
+        ),
+        child: Center(
+          child: Text(
+            day,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
             ),
           ),
         ),

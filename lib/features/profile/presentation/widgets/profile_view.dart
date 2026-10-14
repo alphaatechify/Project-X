@@ -121,7 +121,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             const SizedBox(height: 12),
             Text(
               isCustomer
-                  ? 'Switching will activate your Service Provider Console where you can accept nearby customer bookings, track your earnings, and set custom rates.'
+                  ? 'Switching will activate your Service Provider Console where you can accept nearby customer bookings, manage active jobs, and update your service availability.'
                   : 'Switching will take you back to Customer Mode where you can browse all services, place instant bookings, and track active requests.',
               style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.45),
             ),

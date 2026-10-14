@@ -1535,33 +1535,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               const SizedBox(width: 10),
 
-              // 6. Cart Icon with live badge
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  IconButton(
-                    onPressed: _showCartBottomSheet,
-                    icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textDark, size: 22),
-                    tooltip: 'Cart',
-                  ),
-                  if (cartCount > 0)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryYellow,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Text(
-                          '$cartCount',
-                          style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.textDark),
+              // 6. Cart Icon with live badge (Only for Customer mode)
+              if (!isProviderMode) ...[
+                Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: _showCartBottomSheet,
+                      icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textDark, size: 22),
+                      tooltip: 'Cart',
+                    ),
+                    if (cartCount > 0)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryYellow,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Text(
+                            '$cartCount',
+                            style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                          ),
                         ),
                       ),
-                    ),
-                ],
-              ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
