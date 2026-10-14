@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:project_x/app/theme/app_colors.dart';
+import 'package:project_x/features/bookings/data/booking_provider.dart';
+import 'package:project_x/features/bookings/domain/models/booking_model.dart';
+import 'package:project_x/features/home/data/home_navigation_provider.dart';
 import '../../domain/models/provider_model.dart';
 import '../../domain/models/service_model.dart';
 
-class BookingBottomSheet extends StatefulWidget {
+class BookingBottomSheet extends ConsumerStatefulWidget {
   final ServiceModel service;
   final ServiceProviderModel provider;
 
@@ -15,10 +20,10 @@ class BookingBottomSheet extends StatefulWidget {
   });
 
   @override
-  State<BookingBottomSheet> createState() => _BookingBottomSheetState();
+  ConsumerState<BookingBottomSheet> createState() => _BookingBottomSheetState();
 }
 
-class _BookingBottomSheetState extends State<BookingBottomSheet> {
+class _BookingBottomSheetState extends ConsumerState<BookingBottomSheet> {
   int _selectedTimeSlotIndex = 0;
   late String _selectedSubCategory;
 
@@ -254,8 +259,29 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   height: 48,
                   child: ElevatedButton(
                     onPressed: () {
+                      final priceNum = double.tryParse(
+                            widget.provider.price.replaceAll(RegExp(r'[^0-9.]'), ''),
+                          ) ??
+                          199.0;
+
+                      final bookingId = ref.read(bookingsProvider.notifier).createBooking(
+                            provider: widget.provider,
+                            serviceTitle: '${widget.service.title} - $_selectedSubCategory',
+                            serviceCategory: widget.service.id,
+                            serviceIcon: widget.service.icon,
+                            totalAmount: priceNum,
+                            items: [
+                              BookingItem(
+                                title: '$_selectedSubCategory Service',
+                                quantity: 1,
+                                price: priceNum,
+                              ),
+                            ],
+                            notes: 'Scheduled: ${_timeSlots[_selectedTimeSlotIndex]}',
+                          );
+
                       Navigator.pop(context);
-                      _showSuccessDialog(context);
+                      _showSuccessDialog(context, bookingId);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryYellow,
@@ -288,10 +314,10 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
     );
   }
 
-  void _showSuccessDialog(BuildContext context) {
+  void _showSuccessDialog(BuildContext context, String bookingId) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         content: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -316,7 +342,23 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                   color: AppColors.textDark,
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Booking ID: $bookingId',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textDark,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               Text(
                 '${widget.provider.name} has accepted your request for ${widget.service.title}. ETA: ${_timeSlots[_selectedTimeSlotIndex]}.',
                 textAlign: TextAlign.center,
@@ -327,20 +369,46 @@ class _BookingBottomSheetState extends State<BookingBottomSheet> {
                 ),
               ),
               const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.textDark,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: Text(
+                        'Close',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.textDark),
+                      ),
+                    ),
                   ),
-                  child: Text(
-                    'Done',
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        ref.read(homeBottomNavIndexProvider.notifier).state = 1;
+                        if (context.canPop()) {
+                          context.pop();
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryYellow,
+                        foregroundColor: AppColors.textDark,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        'View in Bookings',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w800),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),

@@ -234,15 +234,14 @@ class _ProviderProfileScreenState extends ConsumerState<ProviderProfileScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Supabase Services Insert: $e',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              'Notice: Saved locally (Database sync: $e)',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 12),
             ),
-            backgroundColor: AppColors.error,
-            duration: const Duration(seconds: 5),
+            backgroundColor: const Color(0xFFD97706),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
-      return;
     }
 
     if (!mounted) return;

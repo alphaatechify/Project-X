@@ -5,9 +5,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:project_x/app/app.dart';
 import 'package:project_x/app/config/app_config.dart';
 import 'package:project_x/core/storage/local_storage.dart';
+import 'package:project_x/features/auth/presentation/screens/phone_verification_screen.dart';
+import 'package:flutter/material.dart';
 
 void main() {
-  testWidgets('App loads PhoneVerificationScreen by default', (WidgetTester tester) async {
+  testWidgets('App loads HomeScreen by default', (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
     final sharedPreferences = await SharedPreferences.getInstance();
 
@@ -18,6 +20,27 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(sharedPreferences),
         ],
         child: const ProjectXApp(),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Indiranagar'), findsWidgets);
+  });
+
+  testWidgets('PhoneVerificationScreen displays correctly', (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final sharedPreferences = await SharedPreferences.getInstance();
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          appConfigProvider.overrideWithValue(AppConfig.dev()),
+          sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+        ],
+        child: const MaterialApp(
+          home: PhoneVerificationScreen(),
+        ),
       ),
     );
 

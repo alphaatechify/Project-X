@@ -8,6 +8,12 @@ import 'package:project_x/features/bookings/presentation/widgets/bookings_view.d
 import 'package:project_x/features/profile/presentation/widgets/profile_view.dart';
 import 'package:project_x/features/services/data/service_repository.dart';
 import 'package:project_x/features/services/domain/models/service_model.dart';
+import 'package:project_x/features/provider/presentation/widgets/provider_dashboard_view.dart';
+import 'package:project_x/services/auth_service.dart';
+import 'package:project_x/features/cart/data/cart_provider.dart';
+import 'package:project_x/features/cart/presentation/widgets/cart_bottom_sheet.dart';
+import 'package:project_x/features/bookings/data/booking_provider.dart';
+import 'package:project_x/features/home/data/home_navigation_provider.dart';
 import '../widgets/emergency_services_modal.dart';
 
 
@@ -19,8 +25,6 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _selectedBottomNavIndex = 0;
-  bool _isProviderMode = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String _selectedSubServiceCategory = 'plumbing';
@@ -81,50 +85,74 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _showCartBottomSheet() {
+    CartBottomSheet.show(context);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final appMode = ref.watch(appUserModeProvider);
+    final isProviderMode = appMode == AppUserMode.serviceProvider;
+    final selectedBottomNavIndex = ref.watch(homeBottomNavIndexProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 960;
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: IndexedStack(
-          index: _selectedBottomNavIndex,
+        child: Column(
           children: [
-            _buildHomeContent(),
-            const BookingsView(),
-            const ProfileView(),
+            if (isDesktop) _buildDesktopHeader(isProviderMode: isProviderMode),
+            Expanded(
+              child: IndexedStack(
+                index: selectedBottomNavIndex,
+                children: [
+                  isProviderMode
+                      ? ProviderDashboardView(
+                          onSwitchToCustomer: () {
+                            ref.read(appUserModeProvider.notifier).setMode(AppUserMode.customer);
+                          },
+                        )
+                      : _buildHomeContent(isDesktop: isDesktop),
+                  const BookingsView(),
+                  const ProfileView(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNavigationBar(),
+      bottomNavigationBar: isDesktop ? null : _buildBottomNavigationBar(isProviderMode: isProviderMode),
     );
   }
 
-  Widget _buildHomeContent() {
+  Widget _buildHomeContent({bool isDesktop = false}) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 24),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1080),
+          constraints: const BoxConstraints(maxWidth: 1140),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          const SizedBox(height: 8),
+              if (!isDesktop) ...[
+                const SizedBox(height: 8),
 
-          // 1. Top Header Row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                // Bolt Squircle Logo
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryYellow,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Center(
+                // 1. Mobile Top Header Row
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Row(
+                    children: [
+                      // Bolt Squircle Logo
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryYellow,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Center(
                     child: Icon(Icons.flash_on_rounded, color: AppColors.textDark, size: 22),
                   ),
                 ),
@@ -176,12 +204,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   icon: const Icon(Icons.notifications_none_rounded, color: AppColors.textDark, size: 24),
                 ),
 
+                // Add to Cart Icon (in the middle between notification and profile)
+                Consumer(
+                  builder: (context, ref, _) {
+                    final cartCount = ref.watch(cartTotalCountProvider);
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        IconButton(
+                          onPressed: _showCartBottomSheet,
+                          icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textDark, size: 23),
+                          tooltip: 'Cart',
+                        ),
+                        if (cartCount > 0)
+                          Positioned(
+                            top: 8,
+                            right: 8,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryYellow,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Text(
+                                '$cartCount',
+                                style: GoogleFonts.inter(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textDark,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(width: 4),
+
                 // User Avatar Button (Redirects to Profile page)
                 InkWell(
                   onTap: () {
-                    setState(() {
-                      _selectedBottomNavIndex = 2;
-                    });
+                    ref.read(homeBottomNavIndexProvider.notifier).state = 2;
                   },
                   borderRadius: BorderRadius.circular(19),
                   child: Container(
@@ -201,6 +265,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           const SizedBox(height: 12),
+        ] else
+          const SizedBox(height: 16),
 
           // 2. Sub-header GPS Bar
           Padding(
@@ -227,26 +293,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 const Spacer(),
 
-                // Mode Tag Pill
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _isProviderMode ? const Color(0xFFFEF08A) : const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.flash_on_rounded, size: 12, color: _isProviderMode ? const Color(0xFF854D0E) : const Color(0xFF0369A1)),
-                      const SizedBox(width: 2),
-                      Text(
-                        _isProviderMode ? 'PROVIDER' : 'CUSTOMER',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: _isProviderMode ? const Color(0xFF854D0E) : const Color(0xFF0369A1),
+                // Mode Tag Pill with tap-to-switch capability
+                InkWell(
+                  onTap: () {
+                    final newMode = ref.read(appUserModeProvider.notifier).toggleMode();
+                    final isNowProvider = newMode == AppUserMode.serviceProvider;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          isNowProvider ? 'Switched to Service Provider Mode' : 'Switched to Customer Mode',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
                         ),
+                        backgroundColor: isNowProvider ? const Color(0xFF15803D) : const Color(0xFF0369A1),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 2),
                       ),
-                    ],
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE0F2FE),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBAE6FD)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_rounded, size: 12, color: Color(0xFF0369A1)),
+                        const SizedBox(width: 3),
+                        Text(
+                          'CUSTOMER',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF0369A1),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.swap_horiz_rounded, size: 12, color: Color(0xFF0369A1)),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -316,120 +404,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
 
           const SizedBox(height: 20),
-
-          // 4. Dual Mode Protocol Banner Card (Dark Banner)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF18181B), // Dark sleek background
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, 4)),
-                ],
-              ),
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.primaryYellow),
-                              const SizedBox(width: 4),
-                              Text(
-                                'DUAL MODE PROTOCOL',
-                                style: GoogleFonts.inter(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: const Color(0xFFA1A1AA),
-                                  letterSpacing: 0.8,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Go Live as Provider',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      // Toggle Switch
-                      Switch.adaptive(
-                        value: _isProviderMode,
-                        activeTrackColor: AppColors.primaryYellow,
-                        onChanged: (val) {
-                          setState(() {
-                            _isProviderMode = val;
-                          });
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(val ? 'Switched to Provider Mode' : 'Switched to Customer Mode'),
-                              duration: const Duration(milliseconds: 1500),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _isProviderMode
-                        ? '🟢 ONLINE • Receiving instant service requests nearby (5.0 km geofence).'
-                        : '● OFFLINE • Browsing as Customer. Switch ON to accept Instant bookings near you (5.0 km geofence).',
-                    style: GoogleFonts.inter(
-                      fontSize: 11.5,
-                      color: const Color(0xFFA1A1AA),
-                      height: 1.35,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  InkWell(
-                    onTap: () => context.push(AppRoutes.providerProfile),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF27272A),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFF3F3F46), width: 1),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.edit_note_rounded, size: 16, color: AppColors.primaryYellow),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Edit Provider Profile →',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.primaryYellow,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-
-          const SizedBox(height: 24),
 
           // 5. Essential Services Section Header
           Padding(
@@ -576,7 +550,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
           // Horizontal Trending Cards List
           SizedBox(
-            height: 240,
+            height: 255,
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -726,7 +700,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Volt Certified Guarantee', style: GoogleFonts.plusJakartaSans(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.textDark)),
+                        Text('Projuct X Verified Guarantee', style: GoogleFonts.plusJakartaSans(fontSize: 14.5, fontWeight: FontWeight.w800, color: AppColors.textDark)),
                         const SizedBox(height: 2),
                         Text('Background-verified pros with 30-day warranty', style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary)),
                       ],
@@ -951,99 +925,119 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // 5 Sub-Services Cards
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: activeService.subServices.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final sub = entry.value;
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
-                ),
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: activeService.cardIconBgColor,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${idx + 1}',
-                          style: GoogleFonts.inter(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: activeService.themeColor,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isDesktop = constraints.maxWidth >= 680;
+              final itemWidth = isDesktop ? (constraints.maxWidth - 12) / 2 : constraints.maxWidth;
+
+              Widget buildSubItem(int idx, dynamic sub) {
+                return Container(
+                  width: itemWidth,
+                  margin: EdgeInsets.only(bottom: isDesktop ? 0 : 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceWhite,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.1),
+                  ),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: activeService.cardIconBgColor,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${idx + 1}',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: activeService.themeColor,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  sub.title,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.textDark,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    sub.title,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textDark,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              InkWell(
-                                onTap: () {
-                                  context.push(AppRoutes.serviceDetail, extra: {'serviceId': activeService.id});
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFFEF08A),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        'Book',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                          color: const Color(0xFF854D0E),
+                                InkWell(
+                                  onTap: () {
+                                    context.push(AppRoutes.serviceDetail, extra: {'serviceId': activeService.id});
+                                  },
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFEF08A),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          'Book',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w800,
+                                            color: const Color(0xFF854D0E),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 2),
-                                      const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF854D0E)),
-                                    ],
+                                        const SizedBox(width: 2),
+                                        const Icon(Icons.arrow_forward_rounded, size: 12, color: Color(0xFF854D0E)),
+                                      ],
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            sub.description,
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.35),
-                          ),
-                        ],
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              sub.description,
+                              style: GoogleFonts.inter(fontSize: 12, color: AppColors.textSecondary, height: 1.35),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
+                    ],
+                  ),
+                );
+              }
+
+              if (isDesktop) {
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: activeService.subServices.asMap().entries.map((entry) {
+                    return buildSubItem(entry.key, entry.value);
+                  }).toList(),
+                );
+              } else {
+                return Column(
+                  children: activeService.subServices.asMap().entries.map((entry) {
+                    return buildSubItem(entry.key, entry.value);
+                  }).toList(),
+                );
+              }
+            },
           ),
         ),
       ],
@@ -1264,7 +1258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
 
-  Widget _buildBottomNavigationBar() {
+  Widget _buildBottomNavigationBar({bool isProviderMode = false}) {
     return Container(
       height: 70,
       decoration: const BoxDecoration(
@@ -1277,9 +1271,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            _buildNavItem(index: 0, label: 'Home', icon: Icons.home_rounded),
-            _buildNavItem(index: 1, label: 'Bookings', icon: Icons.calendar_today_rounded),
-            _buildNavItem(index: 2, label: 'Profile', icon: Icons.person_outline_rounded),
+            _buildNavItem(
+              index: 0,
+              label: isProviderMode ? 'Console' : 'Home',
+              icon: isProviderMode ? Icons.dashboard_rounded : Icons.home_rounded,
+            ),
+            _buildNavItem(
+              index: 1,
+              label: isProviderMode ? 'Jobs' : 'Bookings',
+              icon: isProviderMode ? Icons.handyman_rounded : Icons.calendar_today_rounded,
+            ),
+            _buildNavItem(
+              index: 2,
+              label: 'Profile',
+              icon: Icons.person_outline_rounded,
+            ),
           ],
         ),
       ),
@@ -1287,13 +1293,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Widget _buildNavItem({required int index, required String label, required IconData icon}) {
-    final isSelected = _selectedBottomNavIndex == index;
+    final selectedIndex = ref.watch(homeBottomNavIndexProvider);
+    final isSelected = selectedIndex == index;
 
     return InkWell(
       onTap: () {
-        setState(() {
-          _selectedBottomNavIndex = index;
-        });
+        ref.read(homeBottomNavIndexProvider.notifier).state = index;
       },
       borderRadius: BorderRadius.circular(16),
       child: Padding(
@@ -1323,6 +1328,302 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 color: isSelected ? AppColors.textDark : AppColors.textSecondary,
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopHeader({required bool isProviderMode}) {
+    final selectedIndex = ref.watch(homeBottomNavIndexProvider);
+    final cartCount = ref.watch(cartTotalCountProvider);
+    final allBookings = ref.watch(bookingsProvider);
+    final activeBookingsCount = allBookings.where((b) => b.isActive).length;
+
+    return Container(
+      height: 70,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.2)),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1140),
+            child: Row(
+              children: [
+                // 1. Brand Logo & Name
+                InkWell(
+                onTap: () {
+                  ref.read(homeBottomNavIndexProvider.notifier).state = 0;
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 38,
+                      height: 38,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryYellow,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Center(
+                        child: Icon(Icons.flash_on_rounded, color: AppColors.textDark, size: 24),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'PROJUCT X',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.2,
+                            color: AppColors.textDark,
+                          ),
+                        ),
+                        Text(
+                          'Instant On-Demand Services',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(width: 24),
+
+              // 2. Location Chip
+              InkWell(
+                onTap: _showLocationPickerSheet,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF854D0E)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Indiranagar, Bengaluru',
+                        style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                      ),
+                      const SizedBox(width: 2),
+                      const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: AppColors.textSecondary),
+                    ],
+                  ),
+                ),
+              ),
+
+              const Spacer(),
+
+              // 3. Desktop Navigation Links
+              _buildDesktopNavItem(
+                index: 0,
+                title: isProviderMode ? 'Console' : 'Home',
+                icon: isProviderMode ? Icons.dashboard_rounded : Icons.home_rounded,
+                isSelected: selectedIndex == 0,
+              ),
+              const SizedBox(width: 6),
+              _buildDesktopNavItem(
+                index: 1,
+                title: isProviderMode ? 'Jobs' : 'Bookings',
+                icon: isProviderMode ? Icons.handyman_rounded : Icons.calendar_today_rounded,
+                isSelected: selectedIndex == 1,
+                badgeCount: isProviderMode ? null : (activeBookingsCount > 0 ? activeBookingsCount : null),
+              ),
+              const SizedBox(width: 6),
+              _buildDesktopNavItem(
+                index: 2,
+                title: 'Profile',
+                icon: Icons.person_outline_rounded,
+                isSelected: selectedIndex == 2,
+              ),
+
+              const SizedBox(width: 14),
+              Container(width: 1, height: 26, color: const Color(0xFFE2E8F0)),
+              const SizedBox(width: 14),
+
+              // 4. Emergency 24/7 SOS Chip
+              InkWell(
+                onTap: _showEmergencyModal,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sos_rounded, size: 14, color: Color(0xFFDC2626)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '24/7 SOS',
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w800, color: const Color(0xFFDC2626)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // 5. Account Mode Switcher
+              InkWell(
+                onTap: () {
+                  final newMode = ref.read(appUserModeProvider.notifier).toggleMode();
+                  final isNowProvider = newMode == AppUserMode.serviceProvider;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isNowProvider ? 'Switched to Service Provider Mode' : 'Switched to Customer Mode',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                      ),
+                      backgroundColor: isNowProvider ? const Color(0xFF15803D) : const Color(0xFF0369A1),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isProviderMode ? const Color(0xFFDCFCE7) : const Color(0xFFE0F2FE),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: isProviderMode ? const Color(0xFF86EFAC) : const Color(0xFFBAE6FD)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isProviderMode ? Icons.handyman_rounded : Icons.person_rounded,
+                        size: 13,
+                        color: isProviderMode ? const Color(0xFF15803D) : const Color(0xFF0369A1),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isProviderMode ? 'PROVIDER' : 'CUSTOMER',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: isProviderMode ? const Color(0xFF15803D) : const Color(0xFF0369A1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 10),
+
+              // 6. Cart Icon with live badge
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  IconButton(
+                    onPressed: _showCartBottomSheet,
+                    icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textDark, size: 22),
+                    tooltip: 'Cart',
+                  ),
+                  if (cartCount > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: AppColors.primaryYellow,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          '$cartCount',
+                          style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.textDark),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopNavItem({
+    required int index,
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    int? badgeCount,
+  }) {
+    return InkWell(
+      onTap: () {
+        ref.read(homeBottomNavIndexProvider.notifier).state = index;
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.textDark : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected ? AppColors.primaryYellow : AppColors.textDark,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 12.5,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? Colors.white : AppColors.textDark,
+              ),
+            ),
+            if (badgeCount != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.primaryYellow : const Color(0xFF10B981),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: GoogleFonts.inter(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                    color: isSelected ? AppColors.textDark : Colors.white,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

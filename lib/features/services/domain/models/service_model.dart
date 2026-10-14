@@ -52,12 +52,46 @@ class ServiceModel {
   });
 }
 
-class SubServiceItem {
+class SubSubServiceItem {
+  final String id;
   final String title;
   final String description;
+  final String price;
+  final double priceNumber;
+  final String timeEstimate;
+
+  const SubSubServiceItem({
+    this.id = '',
+    required this.title,
+    this.description = '',
+    required this.price,
+    required this.priceNumber,
+    this.timeEstimate = '30 mins',
+  });
+
+  String get effectiveId => id.isNotEmpty ? id : title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
+}
+
+class SubServiceItem {
+  final String id;
+  final String title;
+  final String description;
+  final String price;
+  final double priceNumber;
+  final String imageUrl;
+  final List<String> includedItems;
+  final List<SubSubServiceItem> subSubServices;
 
   const SubServiceItem({
+    this.id = '',
     required this.title,
     required this.description,
+    this.price = '₹349',
+    this.priceNumber = 349.0,
+    this.imageUrl = 'assets/images/plumbing_service.jpg',
+    this.includedItems = const [],
+    this.subSubServices = const [],
   });
+
+  String get effectiveId => id.isNotEmpty ? id : title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
 }

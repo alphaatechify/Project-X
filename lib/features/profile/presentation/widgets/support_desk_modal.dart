@@ -104,7 +104,7 @@ class SupportDeskModal extends StatelessWidget {
             context: context,
             icon: Icons.phone_callback_rounded,
             title: 'Call Toll-Free Helpline',
-            subtitle: '1800-VOLT-HELP (1800 865 84357)',
+            subtitle: '1800-PROJUCT-X (1800 776 5828)',
             badge: 'TOLL-FREE',
             badgeBg: const Color(0xFFFEF08A),
             badgeTextColor: const Color(0xFF713F12),

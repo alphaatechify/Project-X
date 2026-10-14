@@ -19,7 +19,7 @@ void main() async {
   try {
     await Supabase.initialize(
       url: config.supabaseUrl,
-      anonKey: config.supabaseAnonKey,
+      publishableKey: config.supabaseAnonKey,
     );
     AppLogger.info('Supabase initialized successfully');
   } catch (e, stackTrace) {

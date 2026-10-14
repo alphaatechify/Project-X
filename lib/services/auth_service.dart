@@ -244,8 +244,64 @@ final currentUserProfileProvider = StateProvider<UserProfile?>((ref) {
   return null;
 });
 
+/// Application mode: Customer or Service Provider
+enum AppUserMode {
+  customer,
+  serviceProvider,
+}
+
+class AppUserModeNotifier extends StateNotifier<AppUserMode> {
+  final Ref _ref;
+
+  AppUserModeNotifier(this._ref) : super(AppUserMode.customer) {
+    _loadInitialMode();
+  }
+
+  void _loadInitialMode() {
+    try {
+      final prefs = _ref.read(sharedPreferencesProvider);
+      final saved = prefs.getString('app_user_mode');
+      if (saved == 'serviceProvider') {
+        state = AppUserMode.serviceProvider;
+      } else {
+        state = AppUserMode.customer;
+      }
+    } catch (_) {}
+  }
+
+  AppUserMode toggleMode() {
+    final next = (state == AppUserMode.customer)
+        ? AppUserMode.serviceProvider
+        : AppUserMode.customer;
+    setMode(next);
+    return next;
+  }
+
+  void setMode(AppUserMode mode) {
+    state = mode;
+    try {
+      final prefs = _ref.read(sharedPreferencesProvider);
+      prefs.setString(
+        'app_user_mode',
+        mode == AppUserMode.serviceProvider ? 'serviceProvider' : 'customer',
+      );
+      if (mode == AppUserMode.serviceProvider) {
+        _ref.read(isProviderLiveProvider.notifier).state = true;
+        prefs.setBool('is_provider_live', true);
+      }
+    } catch (_) {}
+  }
+}
+
+/// Provider tracking active application user mode (Customer vs Service Provider)
+final appUserModeProvider =
+    StateNotifierProvider<AppUserModeNotifier, AppUserMode>((ref) {
+  return AppUserModeNotifier(ref);
+});
+
 /// Provider exposing AuthService
 final authServiceProvider = Provider<AuthService>((ref) {
   final supabase = ref.watch(supabaseClientProvider);
   return AuthService(supabase, ref);
 });
+

@@ -27,7 +27,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Log Out', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-        content: Text('Are you sure you want to log out of Kinetic Volt?', style: GoogleFonts.inter()),
+        content: Text('Are you sure you want to log out of Projuct X?', style: GoogleFonts.inter()),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -46,6 +46,167 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: const Text('Log Out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleSwitchAccount() {
+    final currentMode = ref.read(appUserModeProvider);
+    final isCustomer = currentMode == AppUserMode.customer;
+    final targetModeTitle = isCustomer ? 'Service Provider' : 'Customer';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isCustomer ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                isCustomer ? Icons.engineering_rounded : Icons.person_rounded,
+                color: isCustomer ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Switch Account Mode',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isCustomer ? Icons.person_outline_rounded : Icons.engineering_outlined,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Active Mode: ${isCustomer ? 'Customer' : 'Service Provider'}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textDark,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              isCustomer
+                  ? 'Switching will activate your Service Provider Console where you can accept nearby customer bookings, track your earnings, and set custom rates.'
+                  : 'Switching will take you back to Customer Mode where you can browse all services, place instant bookings, and track active requests.',
+              style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary, height: 1.45),
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Color(0xFFE2E8F0)),
+            const SizedBox(height: 4),
+            TextButton.icon(
+              onPressed: () async {
+                Navigator.pop(context);
+                await ref.read(authServiceProvider).signOut();
+                ref.read(authControllerProvider.notifier).logout();
+                if (context.mounted) {
+                  context.go(AppRoutes.phoneVerification);
+                }
+              },
+              icon: const Icon(Icons.phone_android_rounded, size: 15, color: AppColors.textSecondary),
+              label: Text(
+                'Log in with a different phone number',
+                style: GoogleFonts.inter(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              final newMode = ref.read(appUserModeProvider.notifier).toggleMode();
+              final isNowProvider = newMode == AppUserMode.serviceProvider;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(
+                        isNowProvider ? Icons.engineering_rounded : Icons.person_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          isNowProvider
+                              ? 'Switched to Service Provider Mode! Welcome to your Provider Console.'
+                              : 'Switched to Customer Mode! Browse and book services.',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: isNowProvider ? const Color(0xFF15803D) : const Color(0xFF0369A1),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            },
+            icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+            label: Text(
+              'Switch to $targetModeTitle',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isCustomer ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
           ),
         ],
       ),
@@ -137,6 +298,108 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                       ),
                       child: Text('Save Changes', style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w800)),
                     ),
+                  ),
+
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text(
+                          'ACCOUNT ACTION',
+                          style: GoogleFonts.inter(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textSecondary,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ),
+                      const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Switch Account Option Card & Button
+                  Builder(
+                    builder: (context) {
+                      final currentMode = ref.watch(appUserModeProvider);
+                      final isCustomer = currentMode == AppUserMode.customer;
+                      final targetModeTitle = isCustomer ? 'Service Provider' : 'Customer';
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: isCustomer ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                isCustomer ? Icons.engineering_rounded : Icons.person_rounded,
+                                color: isCustomer ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Switch Account Mode',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.textDark,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Current: ${isCustomer ? 'Customer' : 'Provider'} • Tap to switch to $targetModeTitle',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                Navigator.pop(ctx);
+                                _handleSwitchAccount();
+                              },
+                              icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                              label: Text(
+                                'Switch',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isCustomer ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                minimumSize: Size.zero,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -402,25 +665,32 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                             ),
                             const SizedBox(height: 8),
 
-                            Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFDCFCE7),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: Text(
-                                    'VERIFIED CUSTOMER',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF15803D),
-                                      letterSpacing: 0.5,
+                            Builder(
+                              builder: (context) {
+                                final activeMode = ref.watch(appUserModeProvider);
+                                final isProvMode = activeMode == AppUserMode.serviceProvider;
+
+                                return Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: isProvMode ? const Color(0xFFFEF3C7) : const Color(0xFFDCFCE7),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        isProvMode ? 'VERIFIED SERVICE PROVIDER' : 'VERIFIED CUSTOMER',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          color: isProvMode ? const Color(0xFFB45309) : const Color(0xFF15803D),
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                  ],
+                                );
+                              },
                             ),
                           ],
                         );
@@ -434,13 +704,17 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
           const SizedBox(height: 16),
 
-          // 3. Dual Mode / Go Live as Provider Banner
+          // 3. Dual Mode / Account Mode Switcher Banner (Provider Side Only)
           Builder(
             builder: (context) {
+              final activeMode = ref.watch(appUserModeProvider);
+              final isProvider = activeMode == AppUserMode.serviceProvider;
               final isLive = ref.watch(isProviderLiveProvider);
 
+              if (!isProvider) return const SizedBox.shrink();
+
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.only(left: 20, right: 20, bottom: 16),
                 child: Container(
                   decoration: BoxDecoration(
                     color: const Color(0xFF18181B),
@@ -461,7 +735,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                                   const Icon(Icons.flash_on_rounded, size: 14, color: AppColors.primaryYellow),
                                   const SizedBox(width: 4),
                                   Text(
-                                    'DUAL MODE PROTOCOL',
+                                    'ACTIVE APP MODE',
                                     style: GoogleFonts.inter(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w800,
@@ -473,7 +747,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Provider Mode',
+                                'Service Provider Mode',
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800,
@@ -482,9 +756,72 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                               ),
                             ],
                           ),
+                          // Instant Mode Switch Button
+                          ElevatedButton.icon(
+                            onPressed: _handleSwitchAccount,
+                            icon: const Icon(Icons.swap_horiz_rounded, size: 16),
+                            label: Text(
+                              'Switch to Customer',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF0284C7),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        isLive
+                            ? '🟢 ONLINE PROVIDER • Accepting nearby customer requests within 5.0 km radius.'
+                            : '● OFFLINE PROVIDER • Duty paused. Switch ON to accept instant bookings.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11.5,
+                          color: const Color(0xFFA1A1AA),
+                          height: 1.35,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          InkWell(
+                            onTap: () => context.push(AppRoutes.providerProfile),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF27272A),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: const Color(0xFF3F3F46)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.edit_note_rounded, size: 16, color: AppColors.primaryYellow),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Edit Provider Rates & Profile',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
                           Switch.adaptive(
                             value: isLive,
-                            activeTrackColor: AppColors.primaryYellow,
+                            activeThumbColor: AppColors.primaryYellow,
                             onChanged: (val) {
                               ref.read(isProviderLiveProvider.notifier).state = val;
                               try {
@@ -494,44 +831,6 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
-                      Text(
-                        isLive
-                            ? '🟢 ONLINE • Accepting nearby service requests within 5.0 km radius.'
-                            : '● OFFLINE • Switch ON to accept instant bookings as a verified Provider near you.',
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          color: const Color(0xFFA1A1AA),
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      InkWell(
-                        onTap: () => context.push(AppRoutes.providerProfile),
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryYellow,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.edit_note_rounded, size: 18, color: AppColors.textDark),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Edit Provider Profile & Rates →',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: AppColors.textDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -539,9 +838,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
             },
           ),
 
-          const SizedBox(height: 16),
-
-          // 4. Saved Locations Card
+          // 4. Saved Locations Card (Addresses)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Container(
@@ -586,85 +883,106 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
 
           const SizedBox(height: 20),
 
-          // 5. Settings & Safety Section Header & Items
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Settings & Safety', style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textDark)),
-                  const SizedBox(height: 14),
+          // 5. Settings & Actions Section
+          Builder(
+            builder: (context) {
+              final activeMode = ref.watch(appUserModeProvider);
+              final isCust = activeMode == AppUserMode.customer;
 
-                  // Personal Emergency SOS Contacts
-                  _buildSettingRow(
-                    icon: Icons.sos_rounded,
-                    iconBg: const Color(0xFFFEF2F2),
-                    iconColor: const Color(0xFFDC2626),
-                    title: 'Personal SOS Emergency Contacts',
-                    trailingText: '3 Contacts Saved',
-                    onTap: _openSosModal,
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceWhite,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                   ),
-                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
-
-                  // Language Preference
-                  _buildSettingRow(
-                    icon: Icons.language_rounded,
-                    iconBg: const Color(0xFFFEF08A),
-                    iconColor: const Color(0xFF854D0E),
-                    title: 'Language Preference',
-                    trailingText: _selectedLanguage,
-                    onTap: _openLanguageModal,
-                  ),
-                  const Divider(height: 20, color: Color(0xFFF1F5F9)),
-
-                  // Support & Help Desk
-                  _buildSettingRow(
-                    icon: Icons.support_agent_rounded,
-                    iconBg: const Color(0xFFE0F2FE),
-                    iconColor: const Color(0xFF0369A1),
-                    title: 'Provider & Customer Support Desk',
-                    trailingText: '24/7 Priority',
-                    onTap: _openSupportModal,
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Logout Button
-                  InkWell(
-                    onTap: _handleLogout,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Settings, Safety & Support',
+                        style: GoogleFonts.plusJakartaSans(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.textDark),
                       ),
-                      child: Center(
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.logout_rounded, size: 16, color: Color(0xFFDC2626)),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Log Out of Account',
-                              style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: const Color(0xFFDC2626)),
+                      const SizedBox(height: 14),
+
+                      // Personal Emergency SOS Contacts
+                      _buildSettingRow(
+                        icon: Icons.sos_rounded,
+                        iconBg: const Color(0xFFFEF2F2),
+                        iconColor: const Color(0xFFDC2626),
+                        title: 'Personal SOS Emergency Contacts',
+                        trailingText: '3 Contacts Saved',
+                        onTap: _openSosModal,
+                      ),
+                      const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                      // Language Preference
+                      _buildSettingRow(
+                        icon: Icons.language_rounded,
+                        iconBg: const Color(0xFFFEF08A),
+                        iconColor: const Color(0xFF854D0E),
+                        title: 'Language Preference',
+                        trailingText: _selectedLanguage,
+                        onTap: _openLanguageModal,
+                      ),
+                      const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                      // Support & Help Desk
+                      _buildSettingRow(
+                        icon: Icons.support_agent_rounded,
+                        iconBg: const Color(0xFFE0F2FE),
+                        iconColor: const Color(0xFF0369A1),
+                        title: isCust ? 'Customer Help Desk & FAQs' : 'Provider & Customer Support Desk',
+                        trailingText: '24/7 Priority',
+                        onTap: _openSupportModal,
+                      ),
+                      const Divider(height: 20, color: Color(0xFFF1F5F9)),
+
+                      // Switch Account Option
+                      _buildSettingRow(
+                        icon: Icons.switch_account_rounded,
+                        iconBg: isCust ? const Color(0xFFFEF3C7) : const Color(0xFFE0F2FE),
+                        iconColor: isCust ? const Color(0xFFB45309) : const Color(0xFF0369A1),
+                        title: 'Switch Account Mode',
+                        trailingText: isCust ? 'Switch to Provider' : 'Switch to Customer',
+                        onTap: _handleSwitchAccount,
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Logout Button
+                      InkWell(
+                        onTap: _handleLogout,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEF2F2),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFFCA5A5), width: 1),
+                          ),
+                          child: Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.logout_rounded, size: 16, color: Color(0xFFDC2626)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Log Out of Account',
+                                  style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w800, color: const Color(0xFFDC2626)),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
 
           const SizedBox(height: 24),
@@ -672,7 +990,7 @@ class _ProfileViewState extends ConsumerState<ProfileView> {
           // Core OS Footer
           Center(
             child: Text(
-              'KINETIC VOLT CORE OS • V4.8.2 (SECURE BUILD)',
+              'PROJUCT X CORE • V1.0.0 (SECURE BUILD)',
               style: GoogleFonts.inter(
                 fontSize: 10,
                 fontWeight: FontWeight.w800,

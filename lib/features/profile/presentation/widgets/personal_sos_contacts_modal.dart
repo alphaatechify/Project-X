@@ -71,7 +71,7 @@ class _PersonalSosContactsModalState extends State<PersonalSosContactsModal> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: relationVal,
+              initialValue: relationVal,
               items: ['Father', 'Mother', 'Spouse', 'Sibling', 'Friend', 'Neighbor']
                   .map((r) => DropdownMenuItem(value: r, child: Text(r, style: GoogleFonts.inter(fontSize: 13))))
                   .toList(),
