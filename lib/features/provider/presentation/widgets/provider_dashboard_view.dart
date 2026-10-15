@@ -6,6 +6,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:project_x/app/router/routes.dart';
 import 'package:project_x/app/theme/app_colors.dart';
 import '../../../../services/auth_service.dart';
+import '../../data/provider_jobs_provider.dart';
+import '../../../home/data/home_navigation_provider.dart';
 
 class ProviderDashboardView extends ConsumerStatefulWidget {
   final VoidCallback? onSwitchToCustomer;
@@ -80,7 +82,6 @@ class _ProviderDashboardViewState extends ConsumerState<ProviderDashboardView> {
     },
   ];
 
-  int _completedJobsCount = 12;
   double _serviceRadiusKm = 5.0;
   bool _hasAutoTriggeredPopup = false;
 
@@ -587,8 +588,8 @@ class _ProviderDashboardViewState extends ConsumerState<ProviderDashboardView> {
   void _completeJob(Map<String, dynamic> job) {
     setState(() {
       _activeJobs.removeWhere((j) => j['id'] == job['id']);
-      _completedJobsCount += 1;
     });
+    ref.read(providerJobsProvider.notifier).completeJob(job['id']);
 
     showDialog(
       context: context,
@@ -1083,44 +1084,71 @@ class _ProviderDashboardViewState extends ConsumerState<ProviderDashboardView> {
 
               const SizedBox(height: 16),
 
-              // 3. Operational Performance Cards (Zero Earning references)
+              // 3. Operational Performance Cards (Completed & Pending Chhode Stats)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'Completed',
-                        value: '$_completedJobsCount',
-                        subtitle: '100% on-time arrival',
-                        icon: Icons.task_alt_rounded,
-                        accentColor: const Color(0xFF15803D),
-                        bgColor: const Color(0xFFF0FDF4),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'Active Queue',
-                        value: '${_activeJobs.length} Ongoing',
-                        subtitle: '${_incomingRequests.length} waiting nearby',
-                        icon: Icons.handyman_rounded,
-                        accentColor: const Color(0xFF0369A1),
-                        bgColor: const Color(0xFFF0F9FF),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildMetricCard(
-                        title: 'Service Rating',
-                        value: '4.9 ★',
-                        subtitle: '98% Acceptance Rate',
-                        icon: Icons.star_rounded,
-                        accentColor: const Color(0xFFB45309),
-                        bgColor: const Color(0xFFFEF3C7),
-                      ),
-                    ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final completedList = ref.watch(providerCompletedJobsProvider);
+                    final pendingList = ref.watch(providerPendingJobsProvider);
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Completed',
+                            value: '${completedList.length} Done',
+                            subtitle: 'Tap to view history',
+                            icon: Icons.task_alt_rounded,
+                            accentColor: const Color(0xFF15803D),
+                            bgColor: const Color(0xFFF0FDF4),
+                            onTap: () {
+                              ref.read(homeBottomNavIndexProvider.notifier).state = 1;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Pending Chhode',
+                            value: '${pendingList.length} Pending',
+                            subtitle: 'Follow-up required',
+                            icon: Icons.pause_circle_filled_rounded,
+                            accentColor: const Color(0xFFD97706),
+                            bgColor: const Color(0xFFFEF3C7),
+                            onTap: () {
+                              ref.read(homeBottomNavIndexProvider.notifier).state = 1;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Active Queue',
+                            value: '${_activeJobs.length} Ongoing',
+                            subtitle: '${_incomingRequests.length} nearby',
+                            icon: Icons.handyman_rounded,
+                            accentColor: const Color(0xFF0369A1),
+                            bgColor: const Color(0xFFF0F9FF),
+                            onTap: () {
+                              ref.read(homeBottomNavIndexProvider.notifier).state = 1;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMetricCard(
+                            title: 'Service Rating',
+                            value: '4.95 ★',
+                            subtitle: '98% Acceptance',
+                            icon: Icons.star_rounded,
+                            accentColor: const Color(0xFF7C3AED),
+                            bgColor: const Color(0xFFF5F3FF),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
 
@@ -1154,20 +1182,35 @@ class _ProviderDashboardViewState extends ConsumerState<ProviderDashboardView> {
                           ),
                         ],
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          '${_activeJobs.length} ONGOING',
-                          style: GoogleFonts.inter(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF15803D),
+                      Row(
+                        children: [
+                          TextButton.icon(
+                            onPressed: () {
+                              ref.read(homeBottomNavIndexProvider.notifier).state = 1;
+                            },
+                            icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF0284C7)),
+                            label: Text(
+                              'View All Jobs',
+                              style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: const Color(0xFF0284C7)),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFDCFCE7),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              '${_activeJobs.length} ONGOING',
+                              style: GoogleFonts.inter(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF15803D),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1419,62 +1462,74 @@ class _ProviderDashboardViewState extends ConsumerState<ProviderDashboardView> {
     required IconData icon,
     required Color accentColor,
     required Color bgColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: bgColor,
-              borderRadius: BorderRadius.circular(10),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceWhite,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
-            child: Icon(icon, color: accentColor, size: 19),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: AppColors.textDark,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(7),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 19),
+                ),
+                if (onTap != null)
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: AppColors.textMuted),
+              ],
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            title,
-            style: GoogleFonts.inter(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppColors.textSecondary,
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textDark,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: accentColor,
+            const SizedBox(height: 2),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textSecondary,
+              ),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: accentColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
     );
   }

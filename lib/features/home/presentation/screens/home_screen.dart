@@ -9,6 +9,8 @@ import 'package:project_x/features/profile/presentation/widgets/profile_view.dar
 import 'package:project_x/features/services/data/service_repository.dart';
 import 'package:project_x/features/services/domain/models/service_model.dart';
 import 'package:project_x/features/provider/presentation/widgets/provider_dashboard_view.dart';
+import 'package:project_x/features/provider/presentation/widgets/provider_jobs_view.dart';
+import 'package:project_x/features/provider/data/provider_jobs_provider.dart';
 import 'package:project_x/services/auth_service.dart';
 import 'package:project_x/features/cart/data/cart_provider.dart';
 import 'package:project_x/features/cart/presentation/widgets/cart_bottom_sheet.dart';
@@ -114,7 +116,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           },
                         )
                       : _buildHomeContent(isDesktop: isDesktop),
-                  const BookingsView(),
+                  isProviderMode
+                      ? const ProviderJobsView()
+                      : const BookingsView(),
                   const ProfileView(),
                 ],
               ),
@@ -1259,6 +1263,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
 
   Widget _buildBottomNavigationBar({bool isProviderMode = false}) {
+    final allBookings = ref.watch(bookingsProvider);
+    final activeBookingsCount = allBookings.where((b) => b.isActive).length;
+    final pendingJobsCount = ref.watch(providerPendingJobsProvider).length;
+
     return Container(
       height: 70,
       decoration: const BoxDecoration(
@@ -1280,6 +1288,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               index: 1,
               label: isProviderMode ? 'Jobs' : 'Bookings',
               icon: isProviderMode ? Icons.handyman_rounded : Icons.calendar_today_rounded,
+              badgeCount: isProviderMode ? (pendingJobsCount > 0 ? pendingJobsCount : null) : (activeBookingsCount > 0 ? activeBookingsCount : null),
             ),
             _buildNavItem(
               index: 2,
@@ -1292,7 +1301,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildNavItem({required int index, required String label, required IconData icon}) {
+  Widget _buildNavItem({
+    required int index,
+    required String label,
+    required IconData icon,
+    int? badgeCount,
+  }) {
     final selectedIndex = ref.watch(homeBottomNavIndexProvider);
     final isSelected = selectedIndex == index;
 
@@ -1306,18 +1320,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 36,
-              height: 28,
-              decoration: BoxDecoration(
-                color: isSelected ? AppColors.primaryYellow : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(
-                icon,
-                size: 20,
-                color: AppColors.textDark,
-              ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Container(
+                  width: 36,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryYellow : Colors.transparent,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 20,
+                    color: AppColors.textDark,
+                  ),
+                ),
+                if (badgeCount != null && badgeCount > 0)
+                  Positioned(
+                    top: -4,
+                    right: -4,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFD97706),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        '$badgeCount',
+                        style: GoogleFonts.inter(fontSize: 8.5, fontWeight: FontWeight.w900, color: Colors.white),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(
@@ -1339,6 +1374,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final cartCount = ref.watch(cartTotalCountProvider);
     final allBookings = ref.watch(bookingsProvider);
     final activeBookingsCount = allBookings.where((b) => b.isActive).length;
+    final pendingJobsCount = ref.watch(providerPendingJobsProvider).length;
 
     return Container(
       height: 70,
@@ -1446,7 +1482,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 title: isProviderMode ? 'Jobs' : 'Bookings',
                 icon: isProviderMode ? Icons.handyman_rounded : Icons.calendar_today_rounded,
                 isSelected: selectedIndex == 1,
-                badgeCount: isProviderMode ? null : (activeBookingsCount > 0 ? activeBookingsCount : null),
+                badgeCount: isProviderMode
+                    ? (pendingJobsCount > 0 ? pendingJobsCount : null)
+                    : (activeBookingsCount > 0 ? activeBookingsCount : null),
               ),
               const SizedBox(width: 6),
               _buildDesktopNavItem(

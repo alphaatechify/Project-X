@@ -414,61 +414,106 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
       decoration: BoxDecoration(
         color: AppColors.surfaceWhite,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.45), width: 1.5),
+        border: Border.all(color: const Color(0xFF10B981), width: 2.5),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: const Color(0xFF10B981).withValues(alpha: 0.22),
+            blurRadius: 24,
+            spreadRadius: 2,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Live Accepted Banner Header
+          // 1. Live Accepted Banner Header - High-Contrast Confirmed Highlight
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFF0F766E),
+              gradient: LinearGradient(
+                colors: [Color(0xFF047857), Color(0xFF059669), Color(0xFF0D9488)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(18),
-                topRight: Radius.circular(18),
+                topLeft: Radius.circular(17),
+                topRight: Radius.circular(17),
               ),
             ),
             child: Row(
               children: [
+                // Prominent Confirmed Badge
                 Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF86EFAC),
-                    shape: BoxShape.circle,
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF10B981),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        'CONFIRMED',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.6,
+                          color: const Color(0xFF065F46),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'REQUEST ACCEPTED & EN ROUTE',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0.6,
-                    color: Colors.white,
+                Expanded(
+                  child: Text(
+                    'REQUEST ACCEPTED & EN ROUTE',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.18),
+                    color: Colors.white.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.timer_outlined, size: 12, color: Colors.white),
+                      const Icon(Icons.timer_outlined, size: 13, color: Colors.white),
                       const SizedBox(width: 4),
                       Text(
-                        'ETA: ${booking.etaMinutes} mins',
+                        'ETA: ${booking.etaMinutes}m',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -1150,14 +1195,14 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: const Color(0xFFFAFAFA),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -1165,7 +1210,7 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. Header: Service Title & Status Pill
+          // 1. Header: Service Title & Grayscale Status Pill
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -1173,15 +1218,13 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: isCompleted
-                      ? const Color(0xFFDCFCE7)
-                      : const Color(0xFFFEE2E2),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   booking.serviceIcon,
                   size: 18,
-                  color: isCompleted ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                  color: const Color(0xFF64748B),
                 ),
               ),
               const SizedBox(width: 10),
@@ -1193,8 +1236,8 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                       booking.serviceTitle,
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textDark,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF334155),
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1202,34 +1245,36 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                       '${booking.scheduledTime} • ID: ${booking.id}',
                       style: GoogleFonts.inter(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: const Color(0xFF94A3B8),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
+              // Grayscale / Off-tone Status Pill
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                 decoration: BoxDecoration(
-                  color: isCompleted ? const Color(0xFFDCFCE7) : const Color(0xFFFEE2E2),
+                  color: const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      isCompleted ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                      isCompleted ? Icons.check_circle_outline_rounded : Icons.cancel_outlined,
                       size: 12,
-                      color: isCompleted ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                      color: const Color(0xFF64748B),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      booking.status.label,
+                      booking.status.label.toUpperCase(),
                       style: GoogleFonts.inter(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: isCompleted ? const Color(0xFF15803D) : const Color(0xFFDC2626),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF64748B),
                       ),
                     ),
                   ],
@@ -1239,10 +1284,10 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
           ),
 
           const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 10),
 
-          // 2. Service Provider Info who handled the job
+          // 2. Grayscale Service Provider Info
           InkWell(
             onTap: () {
               final service = ServiceRepository.allServices.firstWhere(
@@ -1269,14 +1314,15 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
               decoration: BoxDecoration(
                 color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
               ),
               child: Row(
                 children: [
                   Container(
                     width: 32,
                     height: 32,
-                    decoration: BoxDecoration(
-                      color: provider.avatarBgColor,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFCBD5E1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -1284,8 +1330,8 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                         provider.avatarInitials,
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF334155),
                         ),
                       ),
                     ),
@@ -1301,8 +1347,8 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                               : 'Requested provider: ${provider.name}',
                           style: GoogleFonts.inter(
                             fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textDark,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF475569),
                           ),
                         ),
                         Text(
@@ -1311,21 +1357,21 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                               : provider.qualifications,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(fontSize: 10.5, color: AppColors.textMuted),
+                          style: GoogleFonts.inter(fontSize: 10.5, color: const Color(0xFF94A3B8)),
                         ),
                       ],
                     ),
                   ),
                   Row(
                     children: [
-                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFFEAB308)),
+                      const Icon(Icons.star_rounded, size: 14, color: Color(0xFF94A3B8)),
                       const SizedBox(width: 2),
                       Text(
                         '${provider.rating}',
                         style: GoogleFonts.inter(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textDark,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1335,20 +1381,20 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
             ),
           ),
 
-          // 3. Review given snippet (if any)
+          // 3. Grayscale Review given snippet (if any)
           if (booking.reviewGiven != null && booking.reviewGiven!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFFEFCE8),
+                color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFFEF08A), width: 0.8),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.format_quote_rounded, size: 14, color: Color(0xFFCA8A04)),
+                  const Icon(Icons.format_quote_rounded, size: 14, color: Color(0xFF94A3B8)),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -1356,7 +1402,7 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontStyle: FontStyle.italic,
-                        color: const Color(0xFF854D0E),
+                        color: const Color(0xFF64748B),
                       ),
                     ),
                   ),
@@ -1369,7 +1415,7 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                                 ? Icons.star_rounded
                                 : Icons.star_outline_rounded,
                             size: 11,
-                            color: const Color(0xFFCA8A04),
+                            color: const Color(0xFF94A3B8),
                           ),
                       ],
                     ),
@@ -1380,7 +1426,7 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
 
           const SizedBox(height: 10),
 
-          // 4. Payment & Rebook Row
+          // 4. Grayscale Payment & Off-tone Rebook Row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1391,16 +1437,16 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                     '₹${booking.totalAmount.toStringAsFixed(0)}',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      color: AppColors.textDark,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF334155),
                     ),
                   ),
                   Text(
                     booking.paymentMethod,
                     style: GoogleFonts.inter(
                       fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: isCompleted ? const Color(0xFF15803D) : AppColors.textMuted,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF94A3B8),
                     ),
                   ),
                 ],
@@ -1411,7 +1457,7 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                     OutlinedButton(
                       onPressed: () => _showRateDialog(booking),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -1419,26 +1465,27 @@ class _BookingsViewState extends ConsumerState<BookingsView> {
                       ),
                       child: Text(
                         'Rate',
-                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.textDark),
+                        style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: const Color(0xFF64748B)),
                       ),
                     ),
                   if (isCompleted && booking.ratingGiven == null)
                     const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => _rebookService(booking),
-                    icon: const Icon(Icons.refresh_rounded, size: 14),
+                    icon: const Icon(Icons.refresh_rounded, size: 13),
                     label: Text(
                       'Rebook',
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryYellow,
-                      foregroundColor: AppColors.textDark,
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      foregroundColor: const Color(0xFF334155),
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

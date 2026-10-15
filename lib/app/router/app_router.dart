@@ -61,7 +61,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'serviceDetail',
         builder: (context, state) {
           final args = state.extra as Map<String, dynamic>? ?? {};
-          final serviceId = args['serviceId'] as String? ?? 'plumber';
+          final serviceId = args['serviceId'] as String? ?? 'plumbing';
           return ServiceDetailScreen(serviceId: serviceId);
         },
       ),

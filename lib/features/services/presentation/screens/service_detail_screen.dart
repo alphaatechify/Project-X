@@ -1023,72 +1023,74 @@ class _ServiceDetailScreenState extends ConsumerState<ServiceDetailScreen> {
           builder: (context, constraints) {
             final isDesktop = constraints.maxWidth >= 720;
             if (isDesktop) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Left details column
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(22),
-                      child: _buildHeroDetailsContent(),
-                    ),
-                  ),
-                  // Right image column
-                  if (_service.imageAsset.isNotEmpty)
-                    SizedBox(
-                      width: 320,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.asset(
-                            _service.imageAsset,
-                            fit: BoxFit.cover,
-                            alignment: _service.imageAlignment,
-                            errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
-                          ),
-                          Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  _service.themeBgColor.withValues(alpha: 0.85),
-                                  Colors.transparent,
-                                ],
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: 14,
-                            right: 14,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.72),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white24),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 14),
-                                  const SizedBox(width: 5),
-                                  Text(
-                                    'Verified Indian Pro',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Left details column
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(22),
+                        child: _buildHeroDetailsContent(),
                       ),
                     ),
-                ],
+                    // Right image column
+                    if (_service.imageAsset.isNotEmpty)
+                      SizedBox(
+                        width: 320,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.asset(
+                              _service.imageAsset,
+                              fit: BoxFit.cover,
+                              alignment: _service.imageAlignment,
+                              errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                            ),
+                            Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    _service.themeBgColor.withValues(alpha: 0.85),
+                                    Colors.transparent,
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              top: 14,
+                              right: 14,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.72),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.verified_rounded, color: Color(0xFF10B981), size: 14),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      'Verified Indian Pro',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
               );
             } else {
               // Mobile stacked layout
