@@ -1,0 +1,18 @@
+Project X ER relationship summary
+
+auth.users 1--1 profiles
+profiles 1--N addresses
+profiles 1--N user_roles 1--N role_transition_events (events reference user + actor)
+service_categories 1--N service_categories (parent tree)
+service_categories 1--N services 1--N service_variants
+profiles 1--0..1 provider_profiles 1--N provider_services N--1 service_variants
+provider_profiles 1--N provider_availability
+profiles(customer) 1--N bookings N--1 addresses
+bookings 1--N booking_items N--1 service_variants
+bookings 1--N booking_assignments N--1 provider_profiles
+bookings 1--N booking_status_events
+bookings 1--N booking_otp_challenges
+bookings 0..1--1 payments 1--N refunds
+bookings 0..1--1 reviews N--1 provider_profiles
+profiles 1--N notifications, device_tokens, support_tickets, sos_contacts
+profiles 1--N audit_logs and api_idempotency_keys

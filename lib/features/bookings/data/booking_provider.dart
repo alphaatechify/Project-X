@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/data/service_repository.dart';
 import '../../services/domain/models/provider_model.dart';
+import '../../../core/supabase/supabase_database_service.dart';
 import '../domain/models/booking_model.dart';
 
 class BookingsNotifier extends StateNotifier<List<BookingModel>> {
-  BookingsNotifier() : super(_initialSeedBookings);
+  final Ref? _ref;
+  BookingsNotifier([this._ref]) : super(_initialSeedBookings);
 
   static List<BookingModel> get _initialSeedBookings {
     // 1. Live accepted booking with Ramesh Kumar (Plumber)
@@ -163,7 +165,44 @@ class BookingsNotifier extends StateNotifier<List<BookingModel>> {
     );
 
     state = [newBooking, ...state];
+
+    // Asynchronously call Supabase RPC if service is available
+    _syncBookingToSupabase(newBooking, notes);
+
     return newId;
+  }
+
+  Future<void> _syncBookingToSupabase(BookingModel booking, String? notes) async {
+    final ref = _ref;
+    if (ref == null) return;
+    try {
+      final dbService = ref.read(supabaseDatabaseServiceProvider);
+      final idempotencyKey = 'bk-${DateTime.now().millisecondsSinceEpoch}-${booking.id}';
+      
+      final payload = {
+        'address': {
+          'address_line1': booking.address,
+          'city': 'Bengaluru',
+          'state': 'Karnataka',
+        },
+        'customer_notes': notes,
+        'items': [
+          for (final item in booking.items)
+            {
+              // Pass quantity and metadata
+              'quantity': item.quantity,
+              'title': item.title,
+            }
+        ]
+      };
+
+      await dbService.createBooking(
+        payload: payload,
+        idempotencyKey: idempotencyKey,
+      );
+    } catch (_) {
+      // Offline fallback: keep local state without interrupting UI
+    }
   }
 
   void cancelBooking(String bookingId, {String? reason}) {
@@ -177,6 +216,18 @@ class BookingsNotifier extends StateNotifier<List<BookingModel>> {
         else
           b,
     ];
+
+    final ref = _ref;
+    if (ref != null) {
+      try {
+        final dbService = ref.read(supabaseDatabaseServiceProvider);
+        dbService.transitionBooking(
+          bookingId: bookingId,
+          targetStatus: 'cancelled',
+          reasonCode: reason,
+        );
+      } catch (_) {}
+    }
   }
 
   void rateBooking(String bookingId, double rating, String review) {
@@ -203,9 +254,20 @@ class BookingsNotifier extends StateNotifier<List<BookingModel>> {
         else
           b,
     ];
+
+    final ref = _ref;
+    if (ref != null) {
+      try {
+        final dbService = ref.read(supabaseDatabaseServiceProvider);
+        dbService.transitionBooking(
+          bookingId: bookingId,
+          targetStatus: newStatus.name,
+        );
+      } catch (_) {}
+    }
   }
 }
 
 final bookingsProvider = StateNotifierProvider<BookingsNotifier, List<BookingModel>>((ref) {
-  return BookingsNotifier();
+  return BookingsNotifier(ref);
 });
